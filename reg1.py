@@ -5,7 +5,9 @@ import numpy as np
 
 
 
-class reg1():
+
+
+class regtask():
     def __init__(self,data,index=None,**kwargs):
         self.data = data
         self.index=index
@@ -19,17 +21,22 @@ class reg1():
 
         
     def features_insights(self):
-        for i in self.df.columns:
-            print(f"{i}:{len(self.df[i].unique())}")
-            if (len(self.df[i].unique()) < 10) :
-                print(f"{self.df[i].unique()}\n")
+        df1=pd.DataFrame()
+        print("\n\n")
+        df1['featues']=self.df.columns
+        df1['count']=list(map(lambda x : self.df[x].count(),self.df.columns))
+        df1['null_values']=list(map(lambda x :self.df[x].isnull().sum(),self.df.columns))
+        df1['uniques']=list(map(lambda x :len(self.df[x].unique()),self.df.columns))
+        df1['values']=list(map(lambda x : self.df[x].unique() if len(self.df[x].unique()) < 10 else 'large spread', self.df.columns))
+        df1['value_counts']=list(map(lambda x : self.df[x].value_counts().values  if len(self.df[x].unique()) < 10 else 'large spread',self.df.columns ))
+        print(df1)
 
-
-
-
+    def feature_plot(self):
+        pass
 
 
 
 if __name__ == '__main__' :
-    bs=reg1('train.csv','row_id')
+    bs=regtask('train.csv','row_id')
     bs.features_insights()
+    # pass
