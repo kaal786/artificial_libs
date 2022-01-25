@@ -8,10 +8,9 @@ import numpy as np
 
 
 class regtask():
-    def __init__(self,data,index=None,**kwargs):
-        self.data = data
-        self.index=index
-        self.df=pd.read_csv(self.data,index_col=self.index)
+    def __init__(self,df,**kwargs):
+   
+        self.df=df
 
     def basics(self):
         print(f"\n 1st 10 values : \n\n {self.df.head()} \n\n")
@@ -36,7 +35,8 @@ class regtask():
 
 
 
-if __name__ == '__main__' :
-    bs=regtask('train.csv','row_id')
-    bs.features_insights()
+# if __name__ == '__main__' :
+    # df=pd.read_csv('~/Downloads/datasets/data/train.csv')
+    # bs=regtask(df)
+    # bs.features_insights()
     # pass
