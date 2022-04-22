@@ -6,14 +6,16 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from abc import ABC, abstractmethod
+# from abc import ABC, abstractmethod
 
-class cucore(ABC):
-    def __init__(self,df,value,**kwargs):
+class cucore():
+    def __init__(self,df,**kwargs):
         self.df=df
-        self.value=value
+    
+
     @classmethod
     def features(self,numeric=False,object=False,datetime=False):
+        print(self.df)
         df1=pd.DataFrame()
         self.features=np.array(self.df.columns)
         if numeric :
@@ -32,7 +34,7 @@ class cucore(ABC):
         df1['uniques']=list(map(lambda x :len(self.df[x].unique()),self.features))
         df1['values']=list(map(lambda x : self.df[x].unique() if len(self.df[x].unique()) < 10 else 'large spread', self.features))
         df1['value_counts']=list(map(lambda x : self.df[x].value_counts().values  if len(self.df[x].unique()) < 10 else 'large spread',self.features ))
-       
+    
         return df1
 
 
@@ -63,9 +65,9 @@ class cucore(ABC):
 
 
     #abstract method : order the child class to implements this method
-    @abstractmethod
-    def method3(self):
-        print(self.value*self.value)
+    # @abstractmethod
+    # def method3(self):
+    #     print(self.value*self.value)
 
 
 
@@ -75,6 +77,14 @@ class cucore(ABC):
 class classification(cucore):
     def __init__(self, df, **kwargs):
         super().__init__(df, **kwargs)
+
+    
+
+
+
+
+
+
 
 
     def features_plot(self,plot_type):
@@ -86,18 +96,20 @@ class regression(cucore):
     def __init__(self, df, value,**kwargs):
         super().__init__(df,value ,**kwargs)
 
-    def method3(self):
-        print(self.value*self.value)
+    # def method3(self):
+    #     print(self.value*self.value)
 
 
 
 if __name__ == '__main__' :
-    df=pd.read_csv('https://raw.githubusercontent.com/pycaret/datasets/main/data/common/automobile.csv')
-    bs=regression(df,1).method3()
+    df=pd.read_csv('../data/regression/titanic_survived/test.csv')
+    # bs=regression(df,3).method3()
     # print(bs.features(object=True))
     # bs.features_plot('correlation')
-    
+
     # a1=cucore(df,12) + cucore(df,19)
     # print(a1)
+    bs=cucore(df)
+    print(bs.features(df))
 
-    
+
