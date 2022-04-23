@@ -7,15 +7,18 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
+# from tensorflow.keras.utils import to_categorical
+from keras.utils.np_utils import to_categorical
 
 
 class common():
     def __init__(self,df,**kwargs):
         self.df=df
-    
     def features(self,num_col=False,obj_col=False,dt_col=False):
+        ddf=self.df
         df1=pd.DataFrame()
-        self.features=np.array(df.columns.tolist())
+        self.features=np.array(ddf.columns.tolist())
         if num_col :
             s = (self.df.dtypes != 'object'  )
             self.features = np.array(s[s].index) 
@@ -35,45 +38,26 @@ class common():
         return df1
         
 
+    
+    def data_process(self,func=None,target='target'):
+        if func!=None :
+            self.df=func(self.df)
 
+        X=self.df.drop(target,axis=1)
+        y=self.df[target]
+      
+        std=StandardScaler()
+        X=std.fit_transform(np.array(X))
 
-    def data_prepare(self,encoder='oh_en',encode_features=None,drop_features=None,target_='target',split_method='hold_out'):
-        """handling empty data"""
-        if True in np.array(self.df.iloc[:1].isnull().any()):
-            if True in np.array(self.df.iloc[:1].isnull().any()):
-                 self.df=self.df.dropna(axis=0)
-            self.df=self.df.fillna(method='bfill',axis=1)
-        self.df=self.df.fillna(method='ffill',axis=1)
+        y=to_categorical(y,2)
+        print(X.shape,y.shape)  
 
-        """encoding data"""
-        if encode_features==None:
-            print("please give us features for encoding")
-        else : 
-            if encoder=='oh_en':
-                oh_df=pd.get_dummies(self.df[[encode_features]])
-                self.df=pd.concat([self.df,oh_df],axis=1)
-            
-            if encoder=='ord_en':
-                
-                le = LabelEncoder()
-                le.fit_transform(self.df[[encode_features]])
-                
-        if drop_features !=None:    
-            self.df=self.df.drop(encode_features+drop_features,axis=1)
-        else :
-            self.df=self.df.drop(encode_features,axis=1)
+        from sklearn.model_selection import train_test_split
+        train_X,val_X,train_y,val_y=train_test_split(X,y,test_size=0.2)
+        for i in [train_X,val_X,train_y,val_y]:
+            print(i.shape)
 
-
-        """spliting data"""
-        X=self.df.drop([target_],axis=1)
-        y=self.df[target_]
-        if split_method=='hold_out':
-            train_X,val_X,train_y,val_y=train_test_split(X,y,test_size=0.2)
-        
-
-
-
-
+        return train_X,val_X,train_y,val_y
 
 
     def features_plot(self,plot_type):
@@ -84,12 +68,26 @@ class common():
         
 
 
+
+class classification(common):
+    def __init__(self, df, **kwargs):
+        super().__init__(df, **kwargs)
+
+
+
+
+    def features_plot(self,plot_type):
+        if plot_type=='confusion':
+            pass
+
+
+class regression(common):
+    def __init__(self, df, value,**kwargs):
+        super().__init__(df,value ,**kwargs)
+
+
+
+
+
 if __name__=='__main__':
-    df=pd.read_csv('../data/regression/titanic_survived/test.csv')
-    # print(df)
-
-    # f1=common(df)
-    # print(f1.features())
-
-    f2=common(df)
-
+    print("Hello")
