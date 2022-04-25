@@ -44,10 +44,9 @@ class common():
 #         df1['skewness']=list(map(lambda x : self.df[x].skew(),self.features))
 #         df1['kurtos']=list(map(lambda x : self.df[x].kurt(),self.features))
         return df1
-        
 
-    
-    def data_process(self,func=None,target='target'):
+
+    def data_process(self,func=None,target='target',mtype='simple'):
         """
         To process the data to feed model
         func = your function that process raw data to universel data
@@ -58,21 +57,23 @@ class common():
 
         X=self.df.drop(target,axis=1)
         y=self.df[target]
-      
+
         std=StandardScaler()
         X=std.fit_transform(np.array(X))
-
-        y=to_categorical(y,2)
-        print(X.shape,y.shape)  
-
+        if mtype=='deep' :
+            y=to_categorical(y,len(self.df[target].unique()))
+     
         from sklearn.model_selection import train_test_split
         train_X,val_X,train_y,val_y=train_test_split(X,y,test_size=0.2)
         for i in [train_X,val_X,train_y,val_y]:
-            print(i.shape)
+                print(i.shape)
 
         return train_X,val_X,train_y,val_y
-
-
+    
+    
+    
+    
+    
     def features_plot(self,ptype='basic'):
         """ptype : default plot : basic || 
             plots : corelation ,cmatrix,"""
@@ -93,30 +94,45 @@ class classification(common):
     def __init__(self, df, **kwargs):
         super().__init__(df, **kwargs)
     
-    def train(self,model=RandomForestClassifier(),mtype='simple',**kwargs):
+    
+
+    
+    
+    def train(self,data,model=RandomForestClassifier(),mtype='simple'):
         """training basic model
             model=your custom model function
             mtype= defalut: simple
                     simple : sklearn model
                     deep : neural model"""
+        
+        train_X,val_X,train_y,val_y=data
         if mtype=='simple':
             model.fit(train_X,train_y) 
         
         if mtype=='deep':
-            model.fit(train_X,train_y,validation_data=(val_X,val_y),epochs=40,batch_size=32,verbose=0)
+            model.fit(train_X,train_y,validation_data=(val_X,val_y),epochs=1,batch_size=32,verbose=0)
         
         val_yhat=model.predict(val_X)
         train_yhat=model.predict(train_X)
-        train_score=accuracy_score(np.argmax(train_y,axis=1),np.argmax(train_yhat,axis=1))
-        val_score=accuracy_score(np.argmax(val_y,axis=1),np.argmax(val_yhat,axis=1))
-        print(f"train score : {train_score} val score : {val_score}")
+        if mtype=='simple':
+            train_score=accuracy_score(train_y,train_yhat)
+            val_score=accuracy_score(val_y,val_yhat)
         
+        if mtype=='deep':
+            train_score=accuracy_score(np.argmax(train_y,axis=1),np.argmax(train_yhat,axis=1))
+            val_score=accuracy_score(np.argmax(val_y,axis=1),np.argmax(val_yhat,axis=1))
+            return print(f"train score : {train_score} val score : {val_score}")
+        return print(f"train score : {train_score} val score : {val_score}")
 
 class regression(common):
     def __init__(self, df, value,**kwargs):
-        super().__init__(df,value ,**kwargs)
+        super().__init__(df,**kwargs)
 
-
+class auto(classification):
+    def __init__(self,df,func=None,target='target',mtype='simple',model=RandomForestClassifier(),**kwargs):
+        super().__init__(df ,**kwargs)
+        data=self.data_process(func,target,mtype)
+        self.train(data,model,mtype)
 
 
 
