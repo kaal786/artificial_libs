@@ -10,10 +10,10 @@ import random
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
-
+# from tensorflow.keras.utils import to_categorical
 from keras.utils.np_utils import to_categorical
 from sklearn.metrics import accuracy_score
-
+from sklearn.metrics import mean_squared_error,mean_absolute_error
 #models
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
@@ -29,13 +29,14 @@ class common():
     features,
     features_plot,
     data_process"""
-    def __init__(self,df,data_prepare=None,target='target',mtype='simple',method='zscore',**kwargs):
+    def __init__(self,df,data_prepare=None,target='target',mtype='simple',method='zscore',metric='mse',**kwargs):
+        print("\n\n=>Attributes  [df,data_prepare=None,target='target',mtype='simple',method='zscore',metric='mse'] \n\n=>Methods \n1.features() \n2.feature_plot(ptype='corelation') \n3.data=data_process()  \n4.train(data=data,model=model)\n\n")
         self.df=df
         self.data_prepare=data_prepare
         self.target=target
         self.mtype=mtype
         self.method=method
-    
+        self.metric=metric
     def features(self,num_col=False,obj_col=False,dt_col=False):
         """Basic overviews of features
         for specific features : num_col,obj_col,dt_col"""
@@ -63,6 +64,19 @@ class common():
         df1.set_index('features',inplace=True)
         return df1
 
+    def features_plot(self,ptype='basic'):
+        """ptype : default plot : basic || 
+            plots : corelation ,cmatrix,"""
+        fig=plt.figure(figsize=(16,9))
+        ax=fig.gca()
+        
+        if ptype=='basic' :    
+            self.df.hist(ax=ax,bins=10,)
+
+        if ptype=='corelation' :
+            sns.heatmap(self.df.corr(),ax=ax,cmap='Dark2')
+
+        plt.show()
 
     def numcol_prepare(self,df):
         """Basic preparation of data :
@@ -105,20 +119,7 @@ class common():
     
     
     
-    def features_plot(self,ptype='basic'):
-        """ptype : default plot : basic || 
-            plots : corelation ,cmatrix,"""
-        fig=plt.figure(figsize=(16,9))
-        ax=fig.gca()
-        
-        if ptype=='basic' :    
-            self.df.hist(ax=ax,bins=10,)
-
-        if ptype=='corelation' :
-            sns.heatmap(self.df.corr(),ax=ax,cmap='Dark2')
-
-        plt.show()
-
+    
 
 
 class classification(common):
@@ -131,39 +132,68 @@ class classification(common):
     
     def train(self,data,model=RandomForestClassifier()):
         """training basic model
-            model=your custom model function
-            mtype= defalut: simple
-                    simple : sklearn model
-                    deep : neural model"""
-        
+        model=your custom model function
+        mtype= defalut: simple
+        simple : sklearn model
+        deep : neural model"""
         train_X,val_X,train_y,val_y=data
         if self.mtype=='simple':
             model.fit(train_X,train_y) 
-        
         if self.mtype=='deep':
-            model.fit(train_X,train_y,validation_data=(val_X,val_y),epochs=1,batch_size=32,verbose=0)
-        
+            model.fit(train_X,train_y,validation_data=(val_X,val_y),epochs=1,batch_size=32,verbose=0)        
         val_yhat=model.predict(val_X)
         train_yhat=model.predict(train_X)
         if self.mtype=='simple':
             train_score=accuracy_score(train_y,train_yhat)
             val_score=accuracy_score(val_y,val_yhat)
-        
         if self.mtype=='deep':
             train_score=accuracy_score(np.argmax(train_y,axis=1),np.argmax(train_yhat,axis=1))
             val_score=accuracy_score(np.argmax(val_y,axis=1),np.argmax(val_yhat,axis=1))
             return print(f"train score : {train_score} val score : {val_score}")
         return print(f"train score : {train_score} val score : {val_score}")
-
+        
 class regression(common):
-    def __init__(self, df, value,**kwargs):
+    def __init__(self, df, **kwargs):
         super().__init__(df,**kwargs)
-
-class auto(classification):
-    def __init__(self,df,model=RandomForestClassifier(),**kwargs):
+    
+    
+  
+    def train(self,data,model=RandomForestRegressor()):
+        """training basic model
+        model=your custom model function
+        mtype= defalut: simple
+        simple : sklearn model
+        deep : neural model"""
+    
+        train_X,val_X,train_y,val_y=data
+        if self.mtype=='simple':
+            model.fit(train_X,train_y) 
+        if self.mtype=='deep':
+            model.fit(train_X,train_y,validation_data=(val_X,val_y),epochs=1,batch_size=32,verbose=0)        
+        val_yhat=model.predict(val_X)
+        train_yhat=model.predict(train_X)
+        metrics={'mse':mean_squared_error,'mae':mean_absolute_error}
+        score_=metrics[self.metric]
+        if self.mtype=='simple':
+            
+            train_score=score_(train_y,train_yhat)
+            val_score=score_(val_y,val_yhat)
+        if self.mtype=='deep':
+            train_score=score_(np.argmax(train_y,axis=1),np.argmax(train_yhat,axis=1))
+            val_score=score_(np.argmax(val_y,axis=1),np.argmax(val_yhat,axis=1))
+            return print(f"train score : {train_score} val score : {val_score}")
+        return print(f"train score : {train_score} val score : {val_score}")
+        
+        
+class auto(classification,regression):
+    def __init__(self,df,ptype='clf',model=RandomForestClassifier(),**kwargs):
+        print("Extra Attributes : ptype :['clf','reg']")
         super().__init__(df ,**kwargs)
+        problem={'clf':classification ,'reg': regression}
+        
         data=self.data_process()
-        return self.train(data,model)
+        problem[ptype].train(self,data=data,model=model)
+    
 
 
 if __name__=='__main__':
