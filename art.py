@@ -17,7 +17,7 @@ from sklearn.metrics import mean_squared_error,mean_absolute_error
 #models
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
-
+from math import ceil
 #set seeds
 random.seed(42)
 np.random.seed(42)
@@ -29,7 +29,7 @@ class common():
     features,
     features_plot,
     data_process"""
-    def __init__(self,df,data_prepare=None,target='target',mtype='simple',method='zscore',metric='mse',**kwargs):
+    def __init__(self,df,data_prepare=None,target='target',mtype='simple',method=None,metric='mse',**kwargs):
         print("\n\n=>Attributes  [df,data_prepare=None,target='target',mtype='simple',method='zscore',metric='mse'] \n\n=>Methods \n1.features() \n2.feature_plot(ptype='corelation') \n3.data=data_process()  \n4.train(data=data,model=model)\n\n")
         self.df=df
         self.data_prepare=data_prepare
@@ -101,11 +101,11 @@ class common():
         X=self.df.drop(self.target,axis=1)
         y=self.df[self.target]
 
-
-        methods={'zscore':StandardScaler(),'minmax':MinMaxScaler()}
-        nm=methods[self.method]
-        print(nm)
-        X=nm.fit_transform(np.array(X))
+        if self.method !=None:
+            methods={'zscore':StandardScaler(),'minmax':MinMaxScaler()}
+            nm=methods[self.method]
+            print(nm)
+            X=nm.fit_transform(np.array(X))
 
         if self.mtype=='deep' :
             y=to_categorical(y,len(self.df[self.target].unique()))
@@ -175,16 +175,55 @@ class regression(common):
         metrics={'mse':mean_squared_error,'mae':mean_absolute_error}
         score_=metrics[self.metric]
         if self.mtype=='simple':
-            
             train_score=score_(train_y,train_yhat)
             val_score=score_(val_y,val_yhat)
         if self.mtype=='deep':
             train_score=score_(np.argmax(train_y,axis=1),np.argmax(train_yhat,axis=1))
             val_score=score_(np.argmax(val_y,axis=1),np.argmax(val_yhat,axis=1))
-            return print(f"train score : {train_score} val score : {val_score}")
-        return print(f"train score : {train_score} val score : {val_score}")
+            return print(f"train {self.metric} : {train_score} val {self.metric} : {val_score}")
+        return print(f"train {self.metric} : {train_score} val {self.metric} : {val_score}")
+
+
+class timeseries(common):
+    def __init__(self,df,**kwargs):
+        super().__init__(df,**kwargs)
+         
+    def data_process(self):
+        """
+        To process the data to feed model
+        func = your function that process raw data to universel data
+        target = default : 'target' ,you can provide your target value
+        """
+        print('time is yours')
+        if self.data_prepare!=None :
+            self.df=self.data_prepare(self.df)
+        else :
+            self.df=self.numcol_prepare(self.df)
+            
+        X=self.df.drop(self.target,axis=1)
+        y=self.df[self.target]
+
+        if self.method !=None:
+            methods={'zscore':StandardScaler(),'minmax':MinMaxScaler()}
+            nm=methods[self.method]
+            print(nm)
+            X=nm.fit_transform(np.array(X))
+
+        if self.mtype=='deep' :
+            y=to_categorical(y,len(self.df[self.target].unique()))
+        index_=ceil(X.shape[0]*0.8)
+        train_X,val_X,train_y,val_y=X[:index_],X[index_],y[:index_],y[index_:]
         
-        
+        return train_X,val_X,train_y,val_y
+
+
+
+
+
+
+
+
+
 class auto(classification,regression):
     def __init__(self,df,ptype='clf',model=RandomForestClassifier(),**kwargs):
         print("Extra Attributes : ptype :['clf','reg']")
