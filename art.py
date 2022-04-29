@@ -4,9 +4,9 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import tensorflow as tf
+from tensorflow import random
 import torch
-import random
+import random as rnd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
@@ -15,28 +15,40 @@ from keras.utils.np_utils import to_categorical
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error,mean_absolute_error
 #models
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 from math import ceil
 #set seeds
-random.seed(42)
+rnd.seed(42)
 np.random.seed(42)
-tf.random.set_seed(42)
+random.set_seed(42)
 torch.manual_seed(0)
 
-class common():
+class art():
     """Basic methods : 
     features,
     features_plot,
     data_process"""
-    def __init__(self,df,target='target',ptype='clf',mtype='simple',method=None,metric='mse',**kwargs):
-        print("\n\n=>Attributes  [df,target='target',ptype='clf',mtype='simple',method='zscore',metric='mse'] \n\n=>Methods \n1.features() \n2.feature_plot(ptype='corelation') \n3.data=data_process()  \n4.train(data=data,model=model)\n\n")
+    def __init__(self,df,target='target',ptype='clf',mtype='simple',method=None,metric='mse',validation=True,**kwargs):
+        """
+        =>Attributes  [df,target='target',ptype='clf',mtype='simple',method='zscore',metric='mse'] 
+        =>Methods
+        1.features() 
+        2.feature_plot(ptype='corelation') 
+        3.data=data_process()  
+        4.data=validate(X,y,type='holdout')
+        5.fitting(train_X,train_y)
+        6.scoring(self,actual,yhat)
+
+
+        """
         self.df=df
         self.target=target
         self.mtype=mtype
         self.method=method
         self.metric=metric
         self.ptype=ptype
+        self.validation=validation
     def features(self,more_col=False):
         """Basic overviews of features
         for specific features : num_col,obj_col,dt_col"""
@@ -79,10 +91,10 @@ class common():
         target = default : 'target' ,you can provide your target value
         """
         if data_prepare!=None :
-            self.df=self.data_prepare(self.df)
+            self.df=data_prepare(self.df)
         else :
             self.df.drop((self.df.dtypes=='object')[self.df.dtypes =='object'].index.tolist(),axis=1,inplace=True)
-            self.df=self.df.dropna(axis=0,inplace=True)   
+            self.df=self.df.dropna(axis=0)   
         X=self.df.drop(self.target,axis=1)
         y=self.df[self.target]
 
@@ -104,22 +116,19 @@ class common():
             pass
 
 
-    def fitting(self,train_X,train_y):
+    def fitting(self,model,train_X,train_y):
         if self.mtype=='simple':
             model.fit(train_X,train_y) 
         if self.mtype=='deep':
             model.fit(train_X,train_y,epochs=1,batch_size=32,verbose=0)         
-    
-    def predicting(self,train_X):
-        val_yhat=model.predict(val_X)
-        train_yhat=model.predict(train_X)
-    
+
     def scoring(self,actual,yhat):
         if self.ptype=='clf':
             if self.mtype=='simple':
                 train_score=accuracy_score(actual,yhat)
             if self.mtype=='deep':
                 train_score=accuracy_score(np.argmax(actual,axis=1),np.argmax(yhat,axis=1))
+            print(f" accuracy score : {train_score} ")
         if self.ptype=='reg':
             metrics={'mse':mean_squared_error,'mae':mean_absolute_error}
             score_=metrics[self.metric]
@@ -127,94 +136,56 @@ class common():
                 train_score=score_(actual,yhat)
             if self.mtype=='deep':
                 train_score=score_(actual,np.argmax(yhat,axis=1))
-        print(f" score for {actual} : {train_score} ")
+            print(f"  {self.metric} score : {train_score} ")
 
     
+    def train(self,data_prepare=None):
+        """training basic model
+        model=your custom model function
+        mtype= defalut: simple
+        simple : sklearn model
+        deep : neural model"""
+        models={'clf': RandomForestClassifier,'reg': RandomForestRegressor ,'timeseries' :LinearRegression}
+        model=models[self.ptype]()
+
+        X,y=self.data_process(data_prepare=data_prepare)
+
     
+        if self.validation and self.ptype!='timeseries' :
+            X,val_X,y,val_y=self.validate(X,y)
+            self.fitting(model,X,y)
+            val_yhat=model.predict(val_X)
+            self.scoring(val_y,val_yhat)
+        else :      
+            self.fitting(model,X,y)
+
+        train_yhat=model.predict(X)
+        self.scoring(y,train_yhat)
+
+        
     
     
 
 
-class classification(common):
+class classification(art):
     def __init__(self, df, **kwargs):
         print('what"s your class ?')
         super().__init__(df, **kwargs)
-       
-    def train(self,data,model=RandomForestClassifier()):
-        """training basic model
-        model=your custom model function
-        mtype= defalut: simple
-        simple : sklearn model
-        deep : neural model"""
-        X,y=self.data_process()
-        train_X,val_X,train_y,val_y=self.validate()
-        self.fitting()
-        self.predicting()
-              
-        val_yhat=model.predict(val_X)
-        train_yhat=model.predict(train_X)
-        self.scoring(train_y,train_yhat)
-        self.scoring(val_y,val_yhat)
+        self.ptype='clf'
+    
         
-        
-class regression(common):
+class regression(art):
     def __init__(self, df, **kwargs):
         super().__init__(df,**kwargs)
+        self.ptype='reg'
     
-    
-  
-    def train(self,data,model=RandomForestRegressor()):
-        """training basic model
-        model=your custom model function
-        mtype= defalut: simple
-        simple : sklearn model
-        deep : neural model"""
-    
-        train_X,val_X,train_y,val_y=data
-        if self.mtype=='simple':
-            model.fit(train_X,train_y) 
-        if self.mtype=='deep':
-            model.fit(train_X,train_y,validation_data=(val_X,val_y),epochs=1,batch_size=32,verbose=0)        
-        val_yhat=model.predict(val_X)
-        train_yhat=model.predict(train_X)
-        
-        
 
 
-class timeseries(common):
+class timeseries(art):
     def __init__(self,df,**kwargs):
         print('time is yours')
         super().__init__(df,**kwargs)
-         
-    def data_process(self):
-        """
-        To process the data to feed model
-        func = your function that process raw data to universel data
-        target = default : 'target' ,you can provide your target value
-        """
-        print('time is yours')
-        if self.data_prepare!=None :
-            self.df=self.data_prepare(self.df)
-        else :
-            self.df=self.numcol_prepare(self.df)
-            
-        X=self.df.drop(self.target,axis=1)
-        y=self.df[self.target]
-
-        if self.method !=None:
-            methods={'zscore':StandardScaler(),'minmax':MinMaxScaler()}
-            nm=methods[self.method]
-            print(nm)
-            X=nm.fit_transform(np.array(X))
-
-        if self.mtype=='deep' :
-            y=to_categorical(y,len(self.df[self.target].unique()))
-        index_=ceil(X.shape[0]*0.8)
-        train_X,val_X,train_y,val_y=X[:index_],X[index_],y[:index_],y[index_:]
-        
-        return train_X,val_X,train_y,val_y
-
-
+        self.ptype='timeseries'
 
 
 
