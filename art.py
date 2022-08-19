@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib
 from tensorflow import random
 import torch
 import random as rnd
@@ -39,8 +40,6 @@ class art():
         4.data=validate(X,y,type='holdout')
         5.fitting(train_X,train_y)
         6.scoring(self,actual,yhat)
-
-
         """
         self.df=df
         self.target=target
@@ -66,23 +65,28 @@ class art():
         features_df['count']=list(map(lambda x : self.df[x].count(),self.features))
         features_df['null_values']=list(map(lambda x :self.df[x].isnull().sum(),self.features))
         features_df['uniques']=list(map(lambda x :len(self.df[x].unique()),self.features))
-        features_df['values']=list(map(lambda x : self.df[x].unique() if len(self.df[x].unique()) < 10 else self.df[x].values[:4].tolist(), self.features))
-        features_df['value_counts']=list(map(lambda x : self.df[x].value_counts().values  if len(self.df[x].unique()) < 10 else self.df[x].value_counts().values[:4].tolist(),self.features ))
+        features_df['values']=list(map(lambda x : self.df[x].unique() if len(self.df[x].unique()) < 20 else self.df[x].values[:4].tolist(), self.features))
+        features_df['value_counts']=list(map(lambda x : self.df[x].value_counts().values  if len(self.df[x].unique()) < 20 else self.df[x].value_counts().values[:4].tolist(),self.features ))
         features_df.set_index('features',inplace=True)
         return features_df
 
     def features_plot(self,ptype='basic'):
         """ptype : default plot : basic || 
-            plots : corelation ,cmatrix,"""
-        fig=plt.figure(figsize=(16,9))
-        ax=fig.gca()
+            plots : corelation ,cmatrix,features"""
         if ptype=='basic' :    
             self.df.hist(ax=ax,bins=10,)
         if ptype=='corelation' :
             sns.heatmap(self.df.corr(),ax=ax,cmap='Dark2')
-        plt.show()
-
-   
+        if ptype=='features':
+            fig = plt.figure(constrained_layout = True, figsize = (16,len(self.df.columns.tolist())*7 ),edgecolor='black',facecolor='grey',)
+            grid = matplotlib.gridspec.GridSpec(ncols = 1, nrows = len(self.df.columns.tolist()), figure = fig)           
+            for i,feature in enumerate(self.df.columns.tolist()):
+                try :
+                    locals()["ax"+str(i)]= fig.add_subplot(grid[i, 0])
+                    locals()["ax"+str(i)].set_title(feature)
+                    locals()["ax"+str(i)].plot(self.df[feature])  
+                except :
+                    continue   
     
     def data_process(self,data_prepare=None):
         """
@@ -97,7 +101,6 @@ class art():
             self.df=self.df.dropna(axis=0)   
         X=self.df.drop(self.target,axis=1)
         y=self.df[self.target]
-
         if self.method !=None:
             methods={'zscore':StandardScaler(),'minmax':MinMaxScaler()}
             nm=methods[self.method]
@@ -130,7 +133,7 @@ class art():
                 train_score=accuracy_score(np.argmax(actual,axis=1),np.argmax(yhat,axis=1))
             print(f" accuracy score : {train_score} ")
         if self.ptype=='reg':
-            metrics={'mse':mean_squared_error,'mae':mean_absolute_error}
+            metrics={'mse':mean_squared_error,'mae':mean_absolute_error,'accuracy':accuracy_score}
             score_=metrics[self.metric]
             if self.mtype=='simple':    
                 train_score=score_(actual,yhat)
@@ -147,10 +150,7 @@ class art():
         deep : neural model"""
         models={'clf': RandomForestClassifier,'reg': RandomForestRegressor ,'timeseries' :LinearRegression}
         model=models[self.ptype]()
-
         X,y=self.data_process(data_prepare=data_prepare)
-
-    
         if self.validation and self.ptype!='timeseries' :
             X,val_X,y,val_y=self.validate(X,y)
             self.fitting(model,X,y)
@@ -158,7 +158,6 @@ class art():
             self.scoring(val_y,val_yhat)
         else :      
             self.fitting(model,X,y)
-
         train_yhat=model.predict(X)
         self.scoring(y,train_yhat)
 
@@ -186,8 +185,6 @@ class timeseries(art):
         print('time is yours')
         super().__init__(df,**kwargs)
         self.ptype='timeseries'
-
-
 
 
 
