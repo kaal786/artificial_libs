@@ -1,29 +1,44 @@
 # external libs for use 
 from abc import abstractmethod
+from turtle import shape
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib
-from tensorflow import random
+from math import ceil
+import random 
+
+
+
 import torch
-import random as rnd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler,MinMaxScaler
-# from tensorflow.keras.utils import to_categorical
-from keras.utils.np_utils import to_categorical
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error,mean_absolute_error
 #models
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
-from math import ceil
+
+
+import tensorflow as tf
+from tensorflow import random
+from tensorflow.keras.utils.np_utils import to_categorical
+from tensorflow.keras.layers import Input, Dense ,Dropout
+from tensorflow.keras.models import Model
+
+
+
 #set seeds
-rnd.seed(42)
+random.seed(42)
 np.random.seed(42)
 random.set_seed(42)
-torch.manual_seed(0)
+torch.manual_seed(42)
+
+
+
+
 
 class art():
     """Basic methods : 
@@ -70,14 +85,14 @@ class art():
         features_df.set_index('features',inplace=True)
         return features_df
 
-    def features_plot(self,ptype='basic'):
+    def features_plot(self,plotype='basic'):
         """ptype : default plot : basic || 
             plots : corelation ,cmatrix,features"""
-        if ptype=='basic' :    
-            self.df.hist(ax=ax,bins=10,)
-        if ptype=='corelation' :
-            sns.heatmap(self.df.corr(),ax=ax,cmap='Dark2')
-        if ptype=='features':
+        if plotype=='basic' :    
+            self.df.hist(self.df,bins=10,)
+        if plotype=='corelation' :
+            sns.heatmap(self.df.corr(),cmap='Dark2')
+        if plotype=='features':
             fig = plt.figure(constrained_layout = True, figsize = (16,len(self.df.columns.tolist())*7 ),edgecolor='black',facecolor='grey',)
             grid = matplotlib.gridspec.GridSpec(ncols = 1, nrows = len(self.df.columns.tolist()), figure = fig)           
             for i,feature in enumerate(self.df.columns.tolist()):
@@ -162,7 +177,25 @@ class art():
         self.scoring(y,train_yhat)
 
         
-    
+    def network_(self,input_shape,output_shape):
+        """deep model networks
+        input_shape=tuple e.g (30,)
+        ouput_shape=no of output 
+
+
+        """
+        input=Input(shape=input_shape)
+        x=Dense(units=256,activation='relu')(input)
+        x=Dense(units=128,activation='relu')(x)
+        x=Dense(units=64,activation='relu')(x)
+        output=Dense(units=output_shape)(x)
+        if self.ptype=='clf':
+            self.model.compile(optimizer='adam',loss='categorical_crossentropy',metrics=['accuracy'])
+        if self.ptype=='reg':
+            self.model.compile(optimizer='adam',loss='mae',metrics='mse')
+        self.model=Model(inputs=input,outputs=output)
+        print(self.model.summary())
+        return self.model
     
 
 
@@ -172,7 +205,7 @@ class classification(art):
         super().__init__(df, **kwargs)
         self.ptype='clf'
     
-        
+
 class regression(art):
     def __init__(self, df, **kwargs):
         super().__init__(df,**kwargs)
