@@ -40,14 +40,12 @@ tf.random.set_seed(42)
 torch.manual_seed(42)
 
 
-
-
 class art():
     """Basic methods : 
     features,
     features_plot,
     data_process"""
-    def __init__(self,df,target='target',ptype='clf',mtype='simple',method=None,metric='mse',validation=True,**kwargs):
+    def __init__(self,df,target='target',ptype='clf',mtype='simple',method=None,metric='mse',validation=True,epochs=10,**kwargs):
         """
         =>Attributes  [df,target='target',ptype='clf',mtype='simple',method='zscore',metric='mse'] 
         =>Methods
@@ -65,6 +63,7 @@ class art():
         self.metric=metric
         self.ptype=ptype
         self.validation=validation
+        self.epochs=epochs
        
 
     def features(self,more_col=False):
@@ -129,9 +128,9 @@ class art():
             nm=methods[self.method]
             print(nm)
             X=nm.fit_transform(np.array(X))
-        if self.mtype=='deep' & self.ptype=='clf':
+        if self.ptype=="clf" and  self.mtype=='deep':
             y=to_categorical(y,len(self.df[self.target].unique()))
-        return self.X,self.y
+        return X,y
         
     def validate(self,X,y,type='holdout'):
         if type=='holdout':
@@ -143,11 +142,8 @@ class art():
         if type=='groupKfold':
             pass
 
-    def fitting(self,model,train_X,train_y):
-        if self.mtype=='simple':
-            model.fit(train_X,train_y) 
-        if self.mtype=='deep':
-            self.model.fit(train_X,train_y,epochs=1,batch_size=32,verbose=0)         
+    def validate(self,X):
+        pass
 
     def scoring(self,actual,yhat):
         if self.ptype=='clf':
@@ -165,30 +161,29 @@ class art():
                 train_score=score_(actual,np.argmax(yhat,axis=1))
             print(f"  {self.metric} score : {train_score} ")
    
-    def train(self,model=None,data_prepare=None):
+    def train(self,model=None,data_prepare=None,epochs=10):
         """training basic model
         model=your custom model function
         mtype= defalut: simple
         simple : sklearn model
         deep : neural model"""
-       
-
-        self.model.fit(self.X,self.y)
+        for epoch in range(self.epochs):
+            self.model.fit(self.X,self.y)
         if self.validation and self.ptype!='timeseries' :
-            val_yhat=self.model.predict(val_X)
-            # self.scoring(val_y,val_yhat)
+            val_yhat=self.model.predict(self.val_X)
+            self.scoring(self.val_y,val_yhat)
      
-        train_yhat=self.model.predict(X)
-        # self.scoring(y,train_yhat)
+        train_yhat=self.model.predict(self.X)
+        self.scoring(self.y,train_yhat)
         
-    def network_(self,input_sizequery,output_shape):
+    def network_(self,input_shape,output_shape):
         """deep model networks
-        input_sizequery=tuple e.g (30,)
+        input_shape=tuple e.g (30,)
         ouput_shape=no of output 
 
 
         """
-        input=Input(shape=input_sizequery)
+        input=Input(shape=input_shape)
         x=Dense(units=256,activation='relu')(input)
         x=Dense(units=128,activation='relu')(x)
         x=Dense(units=64,activation='relu')(x)
@@ -203,32 +198,49 @@ class art():
     
 
 class clf(art):
-    def __init__(self, df, **kwargs):
+    def __init__(self, df,model=None, **kwargs):
         print('what"s your class ?')
         super().__init__(df, **kwargs)
         self.ptype='clf'
+        X,y=self.data_process()
+        self.X,self.y,self.val_X,self.val_y=self.validate(X,y)
+        input_shape=X.shape[1:]
+        output_shape=1
+        print(X.shape,y.shape)
+        self.models={'clf':{'simple': RandomForestClassifier(),
+                        'deep':self.network_(input_shape=input_shape,output_shape=output_shape)},
+                    'reg':{'simple':RandomForestRegressor(),
+                        'deep' :self.network_(input_shape=input_shape,output_shape=output_shape)},
+                    'timeseries':{'simple':LinearRegression(),}
+                    }
+        if model==None :
+            self.model=self.models[self.ptype][self.mtype]
+        else:
+            self.model=model
+        
+        self.train()
     
 class reg(art):
     def __init__(self, df,model=None, **kwargs):
         super().__init__(df,**kwargs)
         self.ptype='reg'
         X,y=self.data_process()
-        # X,y,val_X,val_y=self.validate(X,y)
-        # input_sizequery=self.X.shape[1:]
-        # output_shape=self.y.shape
-        # print(X.shape,y.shape)
-        # self.models={'clf':{'simple': RandomForestClassifier(),
-        #                 'deep':self.network_(input_sizequery=input_sizequery,output_shape=output_shape)},
-        #             'reg':{'simple':RandomForestRegressor(),
-        #                 'deep' :self.network_(input_sizequery=input_sizequery,output_shape=output_shape)},
-        #             'timeseries':{'simple':LinearRegression(),}
-        #             }
-        # if model==None :
-        #     self.model=self.models[self.ptype][self.mtype]
-        # else:
-        #     self.model=model
+        self.X,self.y,self.val_X,self.val_y=self.validate(X,y)
+        input_shape=X.shape[1:]
+        output_shape=1
+        print(X.shape,y.shape)
+        self.models={'clf':{'simple': RandomForestClassifier(),
+                        'deep':self.network_(input_shape=input_shape,output_shape=output_shape)},
+                    'reg':{'simple':RandomForestRegressor(),
+                        'deep' :self.network_(input_shape=input_shape,output_shape=output_shape)},
+                    'timeseries':{'simple':LinearRegression(),}
+                    }
+        if model==None :
+            self.model=self.models[self.ptype][self.mtype]
+        else:
+            self.model=model
         
-        # self.train()
+        self.train(self.epochs)
 
 
         
@@ -252,3 +264,7 @@ class timeseries(art):
 
 if __name__=='__main__':
     print("Hello")
+    df=pd.read_csv('/home/kali/Desktop/Eval/machine_learning/data/classification/house_price/train.csv')
+    h2=reg(df,target='SalePrice',mtype='deep',epochs=20)
+    h2.features()
+
