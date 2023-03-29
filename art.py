@@ -40,75 +40,71 @@ tf.random.set_seed(42)
 torch.manual_seed(42)
 
 
-class art():
+class eda():
     """Basic methods : 
     features,
     features_plot,
     data_process"""
-    def __init__(self,df,target='target',ptype='clf',mtype='simple',method=None,metric='mse',validation=True,epochs=10,**kwargs):
+    def __init__(self,df,target='target',**kwargs):
         """
-        =>Attributes  [df,target='target',ptype='clf',mtype='simple',method='zscore',metric='mse'] 
+        =>Attributes  [df,target='target'] 
         =>Methods
         1.features() 
-        2.feature_plot(ptype='corelation') 
-        3.data=data_process()  
-        4.data=validate(X,y,type='holdout')
-        5.fitting(train_X,train_y)
-        6.scoring(self,actual,yhat)
+        2.feature_plot() 
+        3.auto_eda()
         """
         self.df=df
         self.target=target
-        self.mtype=mtype
-        self.method=method
-        self.metric=metric
-        self.ptype=ptype
-        self.validation=validation
-        self.epochs=epochs
-       
+        
 
-    def features(self,more_col=False):
+    def features(self):
         """Basic overviews of features
             for specific features : num_col,obj_col,dt_col"""
         ddf=self.df
-        features_df=pd.DataFrame()
+        describe_df=pd.DataFrame()
         self.features=np.array(ddf.columns.tolist())
-        if more_col :
-            s = (self.df.dtypes != 'object'  )
-            self.features = np.array(s[s].index)
-            features_df['skewness']=list(map(lambda x : self.df[x].skew(),self.features))
-            features_df['kurtos']=list(map(lambda x : self.df[x].kurt(),self.features))
 
-        features_df['features']=self.features  
-        features_df['dtype']=list(map(lambda x : self.df[x].dtype,self.features))
-        features_df['count']=list(map(lambda x : self.df[x].count(),self.features))
-        features_df['null_values']=list(map(lambda x :self.df[x].isnull().sum(),self.features))
-        features_df['uniques']=list(map(lambda x :len(self.df[x].unique()),self.features))
-        features_df['values']=list(map(lambda x : self.df[x].unique() if len(self.df[x].unique()) < 20 else self.df[x].values[:4].tolist(), self.features))
-        features_df['value_counts']=list(map(lambda x : self.df[x].value_counts().values  if len(self.df[x].unique()) < 20 else self.df[x].value_counts().values[:4].tolist(),self.features ))
-        features_df.set_index('features',inplace=True)
-        return features_df
+        describe_df['features']=self.features  
+        describe_df['dtype']=list(map(lambda x : self.df[x].dtype,self.features))
+        describe_df['count']=list(map(lambda x : self.df[x].count(),self.features))
+        describe_df['null_values']=list(map(lambda x :self.df[x].isnull().sum(),self.features))
+        describe_df['uniques']=list(map(lambda x :len(self.df[x].unique()),self.features))
+        describe_df['values']=list(map(lambda x : self.df[x].unique() if len(self.df[x].unique()) < 20 else self.df[x].values[:4].tolist(), self.features))
+        describe_df['value_counts']=list(map(lambda x : self.df[x].value_counts().values  if len(self.df[x].unique()) < 20 else self.df[x].value_counts().values[:4].tolist(),self.features ))
+        describe_df['mean']=list(map(lambda x : self.df[x].mean() if self.df[x].dtype!='object' else 'none' ,self.features))
+        describe_df['25%']=list(map(lambda x : self.df[x].quantile(0.25) if self.df[x].dtype!='object' else 'none',self.features))
+        describe_df['50%']=list(map(lambda x : self.df[x].quantile(0.5) if self.df[x].dtype!='object' else 'none',self.features))
+        describe_df['75%']=list(map(lambda x : self.df[x].quantile(0.75) if self.df[x].dtype!='object' else 'none',self.features))
+        describe_df['skewness']=list(map(lambda x : self.df[x].skew() if self.df[x].dtype!='object' else 'none',self.features))
+        describe_df['kurtos']=list(map(lambda x : self.df[x].kurt() if self.df[x].dtype!='object' else 'none',self.features))
+
+        return describe_df
 
     def features_plot(self,plotype='basic'):
         """ptype : default plot : basic || 
             plots : corelation ,cmatrix,features"""
-        if plotype=='basic' : 
-            try:   
-                self.df.hist()
-            except exception as e:
-                print(e)
-        if plotype=='corelation' :
-            sns.heatmap(self.df.corr(),cmap='Dark2')
-        if plotype=='features':
-            fig = plt.figure(constrained_layout = True, figsize = (16,len(self.df.columns.tolist())*7 ),edgecolor='black',facecolor='grey',)
-            grid = matplotlib.gridspec.GridSpec(ncols = 1, nrows = len(self.df.columns.tolist()), figure = fig)           
-            for i,feature in enumerate(self.df.columns.tolist()):
-                try :
-                    locals()["ax"+str(i)]= fig.add_subplot(grid[i, 0])
-                    locals()["ax"+str(i)].set_title(feature)
-                    locals()["ax"+str(i)].plot(self.df[feature])  
-                except :
-                    continue   
+        feature=0
+        features=len(self.df.columns)
+        fig = plt.figure(constrained_layout = True, figsize = (14,3*features),edgecolor='black',facecolor='grey')
+        grid = matplotlib.gridspec.GridSpec(ncols = 2, nrows =features//2 , figure = fig)
+        for i in range(int(features/2)):
+            if feature > features :
+                break
+            for j in range(2):
+                sns.histplot(self.df[self.df.columns[feature]],ax=fig.add_subplot(grid[i, j]))
+                feature+=1
+        mask=np.triu(np.ones_like(self.df.corr()))
+        sns.heatmap(self.df.corr(),mask=mask,cmap='Dark2')
+        
+        
+    def auto_eda(self):
+        print(self.features())
+        self.features_plot()
     
+
+
+
+
     def data_process(self,data_prepare=None):
         """
         To process the data to feed model
@@ -197,59 +193,59 @@ class art():
         return model
     
 
-class clf(art):
-    def __init__(self, df,model=None, **kwargs):
-        print('what"s your class ?')
-        super().__init__(df, **kwargs)
-        self.ptype='clf'
-        X,y=self.data_process()
-        self.X,self.y,self.val_X,self.val_y=self.validate(X,y)
-        input_shape=X.shape[1:]
-        output_shape=1
-        print(X.shape,y.shape)
-        self.models={'clf':{'simple': RandomForestClassifier(),
-                        'deep':self.network_(input_shape=input_shape,output_shape=output_shape)},
-                    'reg':{'simple':RandomForestRegressor(),
-                        'deep' :self.network_(input_shape=input_shape,output_shape=output_shape)},
-                    'timeseries':{'simple':LinearRegression(),}
-                    }
-        if model==None :
-            self.model=self.models[self.ptype][self.mtype]
-        else:
-            self.model=model
+# class clf(art):
+#     def __init__(self, df,model=None, **kwargs):
+#         print('what"s your class ?')
+#         super().__init__(df, **kwargs)
+#         self.ptype='clf'
+#         X,y=self.data_process()
+#         self.X,self.y,self.val_X,self.val_y=self.validate(X,y)
+#         input_shape=X.shape[1:]
+#         output_shape=1
+#         print(X.shape,y.shape)
+#         self.models={'clf':{'simple': RandomForestClassifier(),
+#                         'deep':self.network_(input_shape=input_shape,output_shape=output_shape)},
+#                     'reg':{'simple':RandomForestRegressor(),
+#                         'deep' :self.network_(input_shape=input_shape,output_shape=output_shape)},
+#                     'timeseries':{'simple':LinearRegression(),}
+#                     }
+#         if model==None :
+#             self.model=self.models[self.ptype][self.mtype]
+#         else:
+#             self.model=model
         
-        self.train()
+#         self.train()
     
-class reg(art):
-    def __init__(self, df,model=None, **kwargs):
-        super().__init__(df,**kwargs)
-        self.ptype='reg'
-        X,y=self.data_process()
-        self.X,self.y,self.val_X,self.val_y=self.validate(X,y)
-        input_shape=X.shape[1:]
-        output_shape=1
-        print(X.shape,y.shape)
-        self.models={'clf':{'simple': RandomForestClassifier(),
-                        'deep':self.network_(input_shape=input_shape,output_shape=output_shape)},
-                    'reg':{'simple':RandomForestRegressor(),
-                        'deep' :self.network_(input_shape=input_shape,output_shape=output_shape)},
-                    'timeseries':{'simple':LinearRegression(),}
-                    }
-        if model==None :
-            self.model=self.models[self.ptype][self.mtype]
-        else:
-            self.model=model
+# class reg(art):
+#     def __init__(self, df,model=None, **kwargs):
+#         super().__init__(df,**kwargs)
+#         self.ptype='reg'
+#         X,y=self.data_process()
+#         self.X,self.y,self.val_X,self.val_y=self.validate(X,y)
+#         input_shape=X.shape[1:]
+#         output_shape=1
+#         print(X.shape,y.shape)
+#         self.models={'clf':{'simple': RandomForestClassifier(),
+#                         'deep':self.network_(input_shape=input_shape,output_shape=output_shape)},
+#                     'reg':{'simple':RandomForestRegressor(),
+#                         'deep' :self.network_(input_shape=input_shape,output_shape=output_shape)},
+#                     'timeseries':{'simple':LinearRegression(),}
+#                     }
+#         if model==None :
+#             self.model=self.models[self.ptype][self.mtype]
+#         else:
+#             self.model=model
         
-        self.train(self.epochs)
+#         self.train(self.epochs)
 
 
         
     
-class timeseries(art):
-    def __init__(self,df,**kwargs):
-        print('time is yours')
-        super().__init__(df,**kwargs)
-        self.ptype='timeseries'
+# class timeseries(art):
+#     def __init__(self,df,**kwargs):
+#         print('time is yours')
+#         super().__init__(df,**kwargs)
+#         self.ptype='timeseries'
 
 
 # class auto(classification,regression):
@@ -261,10 +257,3 @@ class timeseries(art):
 #         data=self.data_process()
 #         problem[self.ptype].train(self,data=data,model=model)
     
-
-if __name__=='__main__':
-    print("Hello")
-    df=pd.read_csv('/home/kali/Desktop/Eval/machine_learning/data/classification/house_price/train.csv')
-    h2=reg(df,target='SalePrice',mtype='deep',epochs=20)
-    h2.features()
-
