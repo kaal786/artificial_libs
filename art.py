@@ -45,7 +45,7 @@ class eda():
     features,
     features_plot,
     data_process"""
-    def __init__(self,df,target='target',**kwargs):
+    def __init__(self,df,target=None,df2=None,df3=None,**kwargs):
         """
         =>Attributes  [df,target='target'] 
         =>Methods
@@ -55,8 +55,16 @@ class eda():
         """
         self.df=df
         self.target=target
+        self.df2=df2
+        self.df3=df3
+        self.checkdf2=type(self.df2)!=type(None)
+        self.checkdf3=type(self.df3)!=type(None)
+        self.dfs={'df1':self.df}
+        if self.checkdf2:
+            self.dfs={'df1':self.df,'df2':self.df2}
+        if self.checkdf3:
+            self.dfs={'df1':self.df,'df2':self.df2,'df3':self.df3}
         
-
     def features(self):
         """Basic overviews of features
             for specific features : num_col,obj_col,dt_col"""
@@ -71,34 +79,103 @@ class eda():
         describe_df['uniques']=list(map(lambda x :len(self.df[x].unique()),self.features))
         describe_df['values']=list(map(lambda x : self.df[x].unique() if len(self.df[x].unique()) < 20 else self.df[x].values[:4].tolist(), self.features))
         describe_df['value_counts']=list(map(lambda x : self.df[x].value_counts().values  if len(self.df[x].unique()) < 20 else self.df[x].value_counts().values[:4].tolist(),self.features ))
-        describe_df['mean']=list(map(lambda x : self.df[x].mean() if self.df[x].dtype!='object' else 'none' ,self.features))
-        describe_df['25%']=list(map(lambda x : self.df[x].quantile(0.25) if self.df[x].dtype!='object' else 'none',self.features))
-        describe_df['50%']=list(map(lambda x : self.df[x].quantile(0.5) if self.df[x].dtype!='object' else 'none',self.features))
-        describe_df['75%']=list(map(lambda x : self.df[x].quantile(0.75) if self.df[x].dtype!='object' else 'none',self.features))
-        describe_df['skewness']=list(map(lambda x : self.df[x].skew() if self.df[x].dtype!='object' else 'none',self.features))
-        describe_df['kurtos']=list(map(lambda x : self.df[x].kurt() if self.df[x].dtype!='object' else 'none',self.features))
-
+        describe_df['skewness']=list(map(lambda x : self.df[x].skew() if self.df[x].dtype!='object' else 'NaN',self.features))
+        describe_df['kurtos']=list(map(lambda x : self.df[x].kurt() if self.df[x].dtype!='object' else 'NaN',self.features))
+        describe_df=pd.concat([describe_df.set_index('features'),self.df.describe().T],axis=1)
+        
         return describe_df
 
-    def features_plot(self,plotype='basic'):
+    def features_plot(self):
         """ptype : default plot : basic || 
             plots : corelation ,cmatrix,features"""
         feature=0
-        features=len(self.df.columns)
-        fig = plt.figure(constrained_layout = True, figsize = (14,3*features),edgecolor='black',facecolor='grey')
-        grid = matplotlib.gridspec.GridSpec(ncols = 2, nrows =features//2 , figure = fig)
-        for i in range(int(features/2)):
-            if feature > features :
-                break
-            for j in range(2):
-                sns.histplot(self.df[self.df.columns[feature]],ax=fig.add_subplot(grid[i, j]))
-                feature+=1
-        mask=np.triu(np.ones_like(self.df.corr()))
-        sns.heatmap(self.df.corr(),mask=mask,cmap='Dark2')
+        features=self.df.columns.tolist()
+        num_cols = list((self.df.dtypes != 'object')[(self.df.dtypes != 'object')].index) 
+        obj_cols=list((self.df.dtypes == 'object')[(self.df.dtypes == 'object')].index)
+        cat_cols=[feature for feature in features if self.df[feature].nunique() <=10]
+        #histogram    
+        n_cols = 2
+        n_rows = ceil(len(features)/n_cols)
+        fig1, ax = plt.subplots(n_rows, n_cols, figsize=(20, n_rows*4))
+        ax = ax.flatten()
+        for i, feature in enumerate(features):
+            for item in self.dfs:
+                try :
+                    sns.histplot(self.dfs[item][feature],ax=ax[i],bins=50,label=item)
+                except :
+                    continue
+            # remove axes to show only one at the end
+            plot_axes = [ax[i]]
+            handles = []
+            labels = []
+            for plot_ax in plot_axes:
+                handles += plot_ax.get_legend_handles_labels()[0]
+                labels += plot_ax.get_legend_handles_labels()[1]
+                plot_ax.legend().remove()
+        for i in range(i+1, len(ax)):
+            ax[i].axis('off')
+        fig1.suptitle(f'Dataset Feature Distributions-[hist]', ha='center',  fontweight='bold', fontsize=25)   
+        fig1.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.95), fontsize=25, ncol=2)
+         
+        #kde comparison
+        n_rows = ceil(len(num_cols)/n_cols)
+        fig2, ax = plt.subplots(n_rows, n_cols, figsize=(20, n_rows*4))
+        ax = ax.flatten()
+        for i, column in enumerate(num_cols):
+            plot_axes = [ax[i]]
+            for item in self.dfs:
+                try:
+                    sns.kdeplot(self.dfs[item][column], label=item,ax=ax[i],)
+                except :
+                    continue
+            ax[i].set_title(f'{column}')
+            ax[i].set_xlabel(None)
+            # remove axes to show only one at the end
+            plot_axes = [ax[i]]
+            handles = []
+            labels = []
+            for plot_ax in plot_axes:
+                handles += plot_ax.get_legend_handles_labels()[0]
+                labels += plot_ax.get_legend_handles_labels()[1]
+                plot_ax.legend().remove()
+        for i in range(i+1, len(ax)):
+            ax[i].axis('off')
+        fig2.suptitle(f'Comparison Dataset Feature Distributions\n\n\n\n\n\n', ha='center',  fontweight='bold', fontsize=25)
+        fig2.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.95), fontsize=25, ncol=2)
+        plt.tight_layout()    
+        
+        #correlation 
+        fig3, ax = plt.subplots(len(self.dfs),1,figsize=(20, len(self.dfs)*10))
+        ax = ax.flatten() if len(self.dfs) >1 else [ax]
+        for i,item in enumerate(self.dfs):
+            mask=np.triu(np.ones_like(self.dfs[item].corr()))
+            sns.heatmap(self.dfs[item].corr(),mask=mask,cmap='Dark2',annot=True,ax=ax[i])
+            ax[i].set_title(f'{item} data');
+        fig3.suptitle(f'Correalation between features \n\n', ha='center',  fontweight='bold', fontsize=25)
+        
+        #categorical features with target
+        try :
+            assert isinstance(self.target,str)
+            n_rows=ceil(len(cat_cols)/n_cols)
+            fig4, ax = plt.subplots(n_rows, n_cols, figsize=(20, n_rows*4), dpi=150)
+            ax = ax.flatten()
+            for i, ft in enumerate(cat_cols):
+                sns.histplot(data=self.df,x=self.target, hue=ft,multiple="stack",edgecolor=".3",linewidth=.5,ax=ax[i],cbar=True)    
+                ax[i].set_title(f'{ft}')
+                ax[i].set_xlabel(None)
+            fig4.suptitle(f'Target distribution with categorical features\n\n', ha='center',  fontweight='bold', fontsize=25)
+            
+        except :
+            pass
+        
+
+        
+        
+        
         
         
     def auto_eda(self):
-        print(self.features())
+        display(self.features())
         self.features_plot()
     
 
