@@ -13,7 +13,9 @@ plt.style.use('fivethirtyeight')
 from math import ceil
 import random 
 
-
+import warnings
+warnings.simplefilter('ignore')
+warnings.filterwarnings('ignore')
 
 import torch
 from sklearn.model_selection import train_test_split,cross_val_score
@@ -270,9 +272,17 @@ class eda():
 #         return model
     
 
-class clf(eda):
-  
+class clf():
     def __init__(self,X,y,validation_data=None,metrics=None,random_state=2023,**kwargs):
+        """
+        PARAMETERS
+        ==========
+        
+        X : features
+        y : target
+        validation_data =[val_X,val_y]
+        metrics = [accuracy_score,roc_auc_score,f1_score]
+        """
         self.X=X
         self.y=y
         self.random_state=random_state
@@ -324,7 +334,7 @@ class clf(eda):
         score_df['CVscore']=0
         score_df['stdavition']=0
         for model in zip(self.models,self.models_name):
-            score.append(np.mean(cross_val_score(estimator=model[0],X=X_train,y= y_train, cv=3, scoring='roc_auc')))
+            score.append(np.mean(cross_val_score(estimator=model[0],X=self.X,y=self.y, cv=3, scoring='roc_auc')))
             std.append(np.std(cross_val_score(estimator=model[0],X=self.X,y=self.y, cv=3, scoring='roc_auc')))
         score_df['CVscore']=score
         score_df['stdavition']=std
@@ -340,11 +350,12 @@ class clf(eda):
                 m_metris.append(metric(self.y,model[0].predict(self.X)))
                 m_metris.append(metric(self.validation_data[1],model[0].predict(self.validation_data[0])))
             metris.append(m_metris)
+                
             self.trained_model[model[1]]=model[0]
         score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_']])
 #         score_df['model']=self.models_name
         score_df.insert(0,'model',self.models_name)
-        self.score_df=score_df.sort_values(by=['train_'+self.metrics[0].__name__],ascending=False)
+        self.score_df=score_df.sort_values(by=['val_'+self.metrics[0].__name__,'train_'+self.metrics[0].__name__],ascending=False)
     
         return self.score_df
     
@@ -353,18 +364,18 @@ class clf(eda):
             score=[]
             yhat=[]
             if test_X is not None :
-                for model in self.score_df['model'][:5]:
+                for model in self.score_df['model'][:top]:
                     yhat.append((self.trained_model[model].predict_proba(test_X))[:,1])
                 return np.array(yhat).T.mean(axis=1)
             else :
-                for model in self.score_df['model'][:5]:
+                for model in self.score_df['model'][:top]:
                     yhat.append((self.trained_model[model].predict_proba(self.validation_data[0]))[:,1])
                 print(f'stacked mean output probability : {np.array(yhat).T.mean(axis=1)}')
                 print(np.where(np.array(yhat).T.mean(axis=1)> 0.5,1,0))
                 score=self.metrics[0](self.validation_data[1],np.where(np.array(yhat).T.mean(axis=1)> 0.5,1,0))
                 print(score)
         if method=='ensemble':
-            estimators=[(model,self.trained_model[model]) for model in self.score_df['model'][:5]]
+            estimators=[(model,self.trained_model[model]) for model in self.score_df['model'][:top]]
             print(estimators)
             model=VotingClassifier(estimators=estimators,voting="soft")
             score=cross_val_score(model,self.X,self.y,scoring="accuracy", cv=4)
