@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 plt.rcParams['figure.figsize']=(12,6)
 plt.style.use('fivethirtyeight')
+pd.options.display.float_format = '{:.2f}'.format
 
 from math import ceil
 import random 
@@ -21,21 +22,15 @@ import torch
 from sklearn.model_selection import train_test_split,cross_val_score
 from sklearn.preprocessing import LabelEncoder,StandardScaler,MinMaxScaler
 from sklearn.metrics import accuracy_score,mean_squared_error,mean_absolute_error,roc_auc_score,f1_score
+from sklearn.utils import all_estimators
 
-# MODELS
-from sklearn.linear_model import LogisticRegression,SGDClassifier, RidgeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import AdaBoostClassifier,ExtraTreesClassifier,RandomForestClassifier,BaggingClassifier,GradientBoostingClassifier,VotingClassifier
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis,QuadraticDiscriminantAnalysis
-from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
-from catboost import CatBoostClassifier
+
 
 import tensorflow as tf
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.layers import Input, Dense ,Dropout
 from tensorflow.keras.models import Model
+
 
 
 
@@ -47,17 +42,21 @@ torch.manual_seed(42)
 
 
 class eda():
-    """Basic methods : 
-    features,
-    features_plot,
-    data_process"""
-    def __init__(self,df,target=None,df2=None,df3=None,**kwargs):
+    def __init__(self,df,target: str =None,df2=None,df3=None,**kwargs):
         """
-        =>Attributes  [df,target='target'] 
-        =>Methods
+        =>Attributes  
+        ===============
+        df : pandas dataframe
+        target : str,'class name'
+        df2 : test/val dataframe
+        df3 : other dataframe
+
+        => Methods
+        ===============
         1.Info() 
         2.feature_plot() 
         3.auto_eda()
+
         """
         self.df=df
         self.target=target
@@ -273,6 +272,7 @@ class eda():
     
 
 class clf():
+
     def __init__(self,X,y,validation_data=None,metrics=None,random_state=2023,**kwargs):
         """
         PARAMETERS
@@ -283,83 +283,92 @@ class clf():
         validation_data =[val_X,val_y]
         metrics = [accuracy_score,roc_auc_score,f1_score]
         """
+        from xgboost import XGBClassifier
+        from lightgbm import LGBMClassifier
+        from catboost import CatBoostClassifier
+        
+
         self.X=X
         self.y=y
         self.random_state=random_state
         self.validation_data=validation_data
-        self.models = [
-            LogisticRegression(max_iter=2000, random_state=self.random_state),
-            KNeighborsClassifier(),
-            LinearDiscriminantAnalysis(),
-            QuadraticDiscriminantAnalysis(),
-            DecisionTreeClassifier(random_state=self.random_state),
-            SGDClassifier(random_state=self.random_state), 
-            RidgeClassifier(random_state=self.random_state),
-            AdaBoostClassifier(random_state=self.random_state),
-            GradientBoostingClassifier(random_state=self.random_state),
-            XGBClassifier(),
-            ExtraTreesClassifier(random_state=self.random_state),
-            RandomForestClassifier(random_state=self.random_state),
-            BaggingClassifier(random_state=self.random_state),
-            LGBMClassifier(random_state=self.random_state),
-            CatBoostClassifier(logging_level="Silent")
-        ]
-
-        self.models_name = [
-            LogisticRegression().__class__.__name__,
-            KNeighborsClassifier().__class__.__name__,
-            LinearDiscriminantAnalysis().__class__.__name__,
-            QuadraticDiscriminantAnalysis().__class__.__name__,
-            DecisionTreeClassifier().__class__.__name__,
-            SGDClassifier().__class__.__name__, 
-            RidgeClassifier().__class__.__name__,
-            AdaBoostClassifier().__class__.__name__,
-            GradientBoostingClassifier().__class__.__name__,
-            XGBClassifier().__class__.__name__,
-            ExtraTreesClassifier().__class__.__name__,
-            RandomForestClassifier().__class__.__name__,
-            BaggingClassifier().__class__.__name__,
-            LGBMClassifier().__class__.__name__,
-            CatBoostClassifier().__class__.__name__
-        ]
+        self.groupbased_estimators=['ClassifierChain','MultiOutputClassifier','OneVsOneClassifier','OneVsRestClassifier','OutputCodeClassifier','RadiusNeighborsClassifier','StackingClassifier','VotingClassifier']
+#classifierchain,  MultiOutputClassifier' ,OneVsOneClassifier ,  'OneVsRestClassifier','OutputCodeClassifier' : are use for multi label output
         
-       
+        
+        self.sklearn_estimators = all_estimators(type_filter='classifier')
+        self.extra_estimators = [
+            (XGBClassifier().__class__.__name__,XGBClassifier),
+            (LGBMClassifier().__class__.__name__,LGBMClassifier),
+            (CatBoostClassifier().__class__.__name__,CatBoostClassifier)   ]
+        
+        self.params={
+            'CatBoostClassifier':{'logging_level':"Silent"},
+            'LogisticRegression':{'max_iter':2000},
+        
+        }
+        
         self.metrics = metrics if metrics is not None \
         else [accuracy_score,f1_score,roc_auc_score]
 
-    def crossval(self):
-        score=[]
-        std=[]
-        score_df=pd.DataFrame(self.models_name,columns=['model'])
-        score_df['CVscore']=0
-        score_df['stdavition']=0
-        for model in zip(self.models,self.models_name):
-            score.append(np.mean(cross_val_score(estimator=model[0],X=self.X,y=self.y, cv=3, scoring='roc_auc')))
-            std.append(np.std(cross_val_score(estimator=model[0],X=self.X,y=self.y, cv=3, scoring='roc_auc')))
-        score_df['CVscore']=score
-        score_df['stdavition']=std
-        return score_df.sort_values(by=['CVscore'],ascending=False).reset_index().drop(['index'],axis=1)
+    def crossval(self,cv: int=5,scoring: str='accuracy'):
+        temp_dict={'models':[],'MeanScore':[],'std':[]}     
+        estimators = all_estimators(type_filter='classifier')
+        for name,model in self.sklearn_estimators + self.extra_estimators:
+            try :
+                if name in self.groupbased_estimators :
+                    continue
+                model=model(random_state=self.random_state,**self.params[name] if name in self.params.keys() else {})
+            except :
+                model=model(**self.params[name] if name in self.params.keys() else {})                 
+                  
+            cv_score=cross_val_score(estimator=model,X=self.X,y=self.y, cv=cv, scoring=scoring)
+            temp_dict['MeanScore'].append(np.mean(cv_score))
+            temp_dict['std'].append(np.std(cv_score))
+            temp_dict['models'].append(name)
+
+                
+        score_df=pd.DataFrame(temp_dict)
+        print('scoring metrics : {} | cv={}'.format(scoring,cv))
+        return score_df.sort_values(by=['MeanScore'],ascending=False).reset_index().drop(['index'],axis=1)
 
     def train(self):
         metris=[]
         self.trained_model={}
-        for model in zip(self.models,self.models_name):
-            model[0].fit(self.X,self.y)
+        for name,model in self.sklearn_estimators + self.extra_estimators:
+            try : 
+                if name in self.groupbased_estimators:
+                    continue
+                model=model(random_state=self.random_state,**self.params[name] if name in self.params.keys() else {})   
+            except :
+                model=model(**self.params[name] if name in self.params.keys() else {})   
+            try :
+                model.fit(self.X,self.y)
+            except :
+                continue
             m_metris=[]
             for metric in self.metrics:
-                m_metris.append(metric(self.y,model[0].predict(self.X)))
-                m_metris.append(metric(self.validation_data[1],model[0].predict(self.validation_data[0])))
-            metris.append(m_metris)
-                
-            self.trained_model[model[1]]=model[0]
+                m_metris.append(metric(self.y,model.predict(self.X)))
+                m_metris.append(metric(self.validation_data[1],model.predict(self.validation_data[0])))
+            metris.append(m_metris)                
+            self.trained_model[name]=model
         score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_']])
-#         score_df['model']=self.models_name
-        score_df.insert(0,'model',self.models_name)
+        score_df.insert(0,'model',self.trained_model.keys())
         self.score_df=score_df.sort_values(by=['val_'+self.metrics[0].__name__,'train_'+self.metrics[0].__name__],ascending=False)
-    
         return self.score_df
     
-    def stacked(self,test_X=None,method='mean',top=5):
+    def stacked(self,test_X=None,method: str='ensemble',top: int=5,output: str =None):
+        """
+        PARAMETERS
+        ==========
+        test_X : default None , return output on test data
+        method : default ensemble , [ensemble,mean]
+                        ensemble : group of best estimators
+                        mean : mean value of probability of top best estimators
+        top : default 5 , no of estimators to choose
+        output : default None , will return labels
+                        proba : use for probability of each class
+        """
         if method=='mean':
             score=[]
             yhat=[]
@@ -375,35 +384,102 @@ class clf():
                 score=self.metrics[0](self.validation_data[1],np.where(np.array(yhat).T.mean(axis=1)> 0.5,1,0))
                 print(score)
         if method=='ensemble':
-            estimators=[(model,self.trained_model[model]) for model in self.score_df['model'][:top]]
-            print(estimators)
-            model=VotingClassifier(estimators=estimators,voting="soft")
-            score=cross_val_score(model,self.X,self.y,scoring="accuracy", cv=4)
-            print(f'mean score : {score.mean()}')
+            top_estimators=[(model,self.trained_model[model]) for model in self.score_df['model'][:top]]
+#             print(top_estimators)
+            from sklearn.ensemble import StackingClassifier,VotingClassifier
+            from sklearn.linear_model import LogisticRegression
+            stakers=[('VotingClassifier',VotingClassifier(estimators=top_estimators,voting="soft")),('StackingClassifier',StackingClassifier(estimators=top_estimators, final_estimator=LogisticRegression()))]
+            for name,model in stakers:
+                score=cross_val_score(model,self.X,self.y,scoring="accuracy", cv=4)
+                print(f'{name} mean score : {score.mean()}')
             if test_X is not None:
                 model.fit(self.X,self.y)
-                return model.predict_proba(test_X)
-# class reg(art):
-#     def __init__(self, df,model=None, **kwargs):
-#         super().__init__(df,**kwargs)
-#         self.ptype='reg'
-#         X,y=self.data_process()
-#         self.X,self.y,self.val_X,self.val_y=self.validate(X,y)
-#         input_shape=X.shape[1:]
-#         output_shape=1
-#         print(X.shape,y.shape)
-#         self.models={'clf':{'simple': RandomForestClassifier(),
-#                         'deep':self.network_(input_shape=input_shape,output_shape=output_shape)},
-#                     'reg':{'simple':RandomForestRegressor(),
-#                         'deep' :self.network_(input_shape=input_shape,output_shape=output_shape)},
-#                     'timeseries':{'simple':LinearRegression(),}
-#                     }
-#         if model==None :
-#             self.model=self.models[self.ptype][self.mtype]
-#         else:
-#             self.model=model
+                if output =='proba':
+                    return model.predict_proba(test_X)
+                else:
+                    return model.predict(test_X)
+
+
+
+class reg():
+    def __init__(self,X,y,validation_data=None,metrics=None,random_state=2023,**kwargs):
+        """
+        PARAMETERS
+        ==========
         
-#         self.train(self.epochs)
+        X : features
+        y : target
+        validation_data =[val_X,val_y]
+        metrics = [accuracy_score,roc_auc_score,f1_score]
+        """
+        from xgboost import XGBRegressor
+        from lightgbm import LGBMRegressor
+        from catboost import CatBoostRegressor
+
+        self.X=X
+        self.y=y
+        self.random_state=random_state
+        self.validation_data=validation_data
+        self.groupbased_estimators=['RegressorChain','MultiOutputRegressor','StackingRegressor','VotingRegressor','RadiusNeighborsRegressor']
+        
+        #fit MultiTaskElasticNet fit MultiTaskElasticNetCV fit MultiTaskLasso fit MultiTaskLassoCV IsotonicRegression
+        self.sklearn_estimators = all_estimators(type_filter='regressor')
+        self.extra_estimators = [
+            (XGBRegressor().__class__.__name__,XGBRegressor),
+            (LGBMRegressor().__class__.__name__,LGBMRegressor),
+            (CatBoostRegressor().__class__.__name__,CatBoostRegressor)   ]
+
+        self.params={
+            'CatBoostRegressor':{'logging_level':"Silent"},
+        }
+        
+        self.metrics = metrics if metrics is not None \
+        else [mean_squared_error,mean_absolute_error]
+
+    def crossval(self,cv: int=5,scoring: str='neg_root_mean_squared_error'):
+        temp_dict={'models':[],'MeanScore':[],'std':[]}     
+        estimators = all_estimators(type_filter='classifier')
+        for name,model in self.sklearn_estimators + self.extra_estimators:
+            try :
+                if name in self.groupbased_estimators :
+                    continue
+                model=model(random_state=self.random_state,**self.params[name] if name in self.params.keys() else {})
+            except :
+                model=model(**self.params[name] if name in self.params.keys() else {})                    
+            cv_score=cross_val_score(estimator=model,X=self.X,y=self.y, cv=cv, scoring=scoring)
+            temp_dict['MeanScore'].append(np.mean(cv_score))
+            temp_dict['std'].append(np.std(cv_score))
+            temp_dict['models'].append(name)
+        score_df=pd.DataFrame(temp_dict)
+        print('scoring metrics : {} | cv={}'.format(scoring,cv))
+        return score_df.sort_values(by=['MeanScore'],ascending=True).reset_index().drop(['index'],axis=1)
+
+    def train(self):
+        metris=[]
+        self.trained_model={}
+        for name,model in self.sklearn_estimators + self.extra_estimators:
+            try : 
+                if name in self.groupbased_estimators:
+                    continue
+                model=model(random_state=self.random_state,**self.params[name] if name in self.params.keys() else {})       
+            except :
+                model=model(**self.params[name] if name in self.params.keys() else {})   
+            try :
+                model.fit(self.X,self.y)
+            except :
+                continue
+            m_metris=[]
+            for metric in self.metrics:
+                m_metris.append(metric(self.y,model.predict(self.X)))
+                m_metris.append(metric(self.validation_data[1],model.predict(self.validation_data[0])))
+            metris.append(m_metris)              
+            self.trained_model[name]=model
+        score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_']])
+        score_df.insert(0,'model',self.trained_model.keys())
+        self.score_df=score_df.sort_values(by=['val_'+self.metrics[0].__name__,'train_'+self.metrics[0].__name__],ascending=True)
+        return self.score_df
+      
+
 
 
         
@@ -424,3 +500,7 @@ class clf():
 #         data=self.data_process()
 #         problem[self.ptype].train(self,data=data,model=model)
     
+
+
+if __name__=='__main__':
+    pass
