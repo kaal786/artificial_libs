@@ -11,9 +11,8 @@ plt.rcParams['figure.figsize']=(12,6)
 plt.style.use('fivethirtyeight')
 
 import pandas as pd
-pd.options.display.float_format = '{:.2f}'.format
-pd.options.display.max_columns = None
-pd.options.display.max_rows = None
+pd.options.display.max_columns = 25
+pd.options.display.max_rows = 25
 
 
 from math import ceil
@@ -165,7 +164,7 @@ class eda():
         fig3.suptitle(f'Correalation between features \n\n', ha='center',  fontweight='bold', fontsize=25)
         
         #categorical features with target
-        if target is not None:
+        if self.target is not None:
             try :
                 assert isinstance(self.target,str)
                 n_rows=ceil(len(self.cat_cols)/n_cols)
@@ -249,7 +248,7 @@ class tabular_supervised :
                 model=model(random_state=self.random_state,**self.params[name] if name in self.params.keys() else {})
             except :
                 model=model(**self.params[name] if name in self.params.keys() else {})                    
-            cv_score=cross_val_score(estimator=model,X=self.X,y=self.y, cv=cv, scoring=scoring)
+            cv_score=cross_val_score(estimator=model,X=self.X,y=self.y, cv=cv, scoring=self.scoring)
             temp_dict['MeanScore'].append(np.mean(cv_score))
             temp_dict['std'].append(np.std(cv_score))
             temp_dict['models'].append(name)
