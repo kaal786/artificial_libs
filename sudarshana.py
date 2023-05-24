@@ -165,19 +165,20 @@ class eda():
         fig3.suptitle(f'Correalation between features \n\n', ha='center',  fontweight='bold', fontsize=25)
         
         #categorical features with target
-        try :
-            assert isinstance(self.target,str)
-            n_rows=ceil(len(self.cat_cols)/n_cols)
-            fig4, ax = plt.subplots(n_rows, n_cols, figsize=(20, n_rows*4), dpi=150)
-            ax = ax.flatten()
-            for i, ft in enumerate(self.cat_cols):
-                sns.histplot(data=self.df,x=self.target, hue=ft,multiple="stack",edgecolor=".3",linewidth=.5,ax=ax[i],cbar=True)    
-                ax[i].set_title(f'{ft}')
-                ax[i].set_xlabel(None)
-            fig4.suptitle(f'Target distribution with categorical features\n\n', ha='center',  fontweight='bold', fontsize=25)
-            
-        except exception as e:
-            pass
+        if target is not None:
+            try :
+                assert isinstance(self.target,str)
+                n_rows=ceil(len(self.cat_cols)/n_cols)
+                fig4, ax = plt.subplots(n_rows, n_cols, figsize=(20, n_rows*4), dpi=150)
+                ax = ax.flatten()
+                for i, ft in enumerate(self.cat_cols):
+                    sns.histplot(data=self.df,x=self.target, hue=ft,multiple="stack",edgecolor=".3",linewidth=.5,ax=ax[i],cbar=True)    
+                    ax[i].set_title(f'{ft}')
+                    ax[i].set_xlabel(None)
+                fig4.suptitle(f'Target distribution with categorical features\n\n', ha='center',  fontweight='bold', fontsize=25)
+                
+            except :
+                pass
         
     def auto_eda(self):
         display(self.info())
@@ -319,7 +320,7 @@ class tabular_supervised :
                     else : 
                         return np.array(yhat).T.mean(axis=1)
 
-                print("TOP{top}Mean_{} => {}".format(self.metrics[0].__name__,score))
+                print("TOP{}Mean_{} => {}".format(top,self.metrics[0].__name__,score))
         
                     
 
