@@ -182,7 +182,8 @@ class eda():
     def auto_eda(self):
         display(self.info())
         self.plots()
-    
+
+
 
 class tabular_supervised :
     def __init__(self,X,y,type_filter='regressor',validation_data=None,metrics=None,random_state=2023,**kwargs):
@@ -345,6 +346,38 @@ class tabular_supervised :
                     
         except AttributeError :
             print(f'please run the train() method first to get top{top} train models')
+
+
+
+class data_process(eda):
+    def __init__(self,df=None,target=None):
+        super().__init__()
+        self.df=df
+        self.target=target
+        self.le={}
+
+
+    def preprocess(df,target,drop_col,method='train_test_split'):
+        X=df.drop([target]+drop_col,axis=1)
+        y=df[target]
+        if method=='train_test_split':
+            train_X,val_X,train_y,val_y=train_test_split(X,y,test_size=0.2)
+            for i in [train_X,val_X,train_y,val_y]:
+                print(i.shape)
+            return train_X,val_X,train_y,val_y
+
+    def encoding(self,X,features,method='label',oof=False):
+        if method=='label':
+            for label in features : 
+                le=LabelEncoder()
+                if not oof:
+                    le.fit(X[label])
+                    self.le[label]=le
+                    X[label]=self.le[label].transform(X[label])
+                else:
+                    X[label]=self.le[label].transform(X[label])
+            return X
+
 
 
 if __name__=='__main__':
