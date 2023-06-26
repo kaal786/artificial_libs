@@ -37,6 +37,8 @@ from tensorflow.keras.layers import Input, Dense ,Dropout
 from tensorflow.keras.models import Model
 
 
+from _estimators import groupbased_estimators,extrareg_estimators,extraclf_estimators
+
 
 
 #set seeds
@@ -186,36 +188,44 @@ class eda():
 
 
 class tabular_supervised :
-    def __init__(self,X,y,type_filter='regressor',validation_data=None,metrics=None,random_state=2023,**kwargs):
+    def __init__(self,
+                    X,
+                    y=None,
+                    df2=None,
+                    type_filter='regressor',
+                    drop_col=[],
+                    validation_data=None,
+                    metrics=None,
+                    model_selection='train_test_split',
+                    **kwargs):
         """
         PARAMETERS
         ==========
         
         X : DataFrame,numpy-array ,features
-        y :DataFrame,numpy-array ,target
+        y :DataFrame,numpy-array,str ,target
 
         validation_data = [val_X,val_y],DataFrame,numpy-array
         type_filter=default 'regressor' ,str ,['regressor',classifier]
         metrics = [accuracy_score,roc_auc_score,f1_score]
         """
-        from xgboost import XGBRegressor,XGBClassifier
-        from lightgbm import LGBMRegressor,LGBMClassifier
-        from catboost import CatBoostRegressor,CatBoostClassifier
+        
         self.type_filter=type_filter
+        self.model_selection=model_selection
+        self.le={}
+        
         self.X=X
         self.y=y
-        self.random_state=random_state
+
+  
+       
         self.validation_data=validation_data
-        self.groupbased_estimators=['QuantileRegressor','RegressorChain','MultiOutputRegressor','StackingRegressor','VotingRegressor','RadiusNeighborsRegressor','PLSRegression'] if self.type_filter=='regressor' else ['ClassifierChain','MultiOutputClassifier','OneVsOneClassifier','OneVsRestClassifier','OutputCodeClassifier','RadiusNeighborsClassifier','StackingClassifier','VotingClassifier']
+        self.groupbased_estimators=groupbased_estimators
 
         self.sklearn_estimators = all_estimators(type_filter=self.type_filter)
 
         if self.type_filter=='regressor':
-            self.extra_estimators = [
-                (XGBRegressor().__class__.__name__,XGBRegressor),
-                (LGBMRegressor().__class__.__name__,LGBMRegressor),
-                (CatBoostRegressor().__class__.__name__,CatBoostRegressor)   ]
-
+            self.extra_estimators = extrareg_estimators
             self.params={
                 'CatBoostRegressor':{'logging_level':"Silent"},
             }
@@ -225,10 +235,7 @@ class tabular_supervised :
             self.ascending=True
 
         if self.type_filter=='classifier' :
-            self.extra_estimators = [
-                (XGBClassifier().__class__.__name__,XGBClassifier),
-                (LGBMClassifier().__class__.__name__,LGBMClassifier),
-                (CatBoostClassifier().__class__.__name__,CatBoostClassifier)   ]
+            self.extra_estimators = extraclf_estimators
             self.params={
                 'CatBoostClassifier':{'logging_level':"Silent"},
                 'LogisticRegression':{'max_iter':2000},
@@ -246,7 +253,7 @@ class tabular_supervised :
             try :
                 if name in self.groupbased_estimators :
                     continue
-                model=model(random_state=self.random_state,**self.params[name] if name in self.params.keys() else {})
+                model=model(**self.params[name] if name in self.params.keys() else {})
             except :
                 model=model(**self.params[name] if name in self.params.keys() else {})                    
             cv_score=cross_val_score(estimator=model,X=self.X,y=self.y, cv=cv, scoring=self.scoring)
@@ -263,22 +270,21 @@ class tabular_supervised :
         metris=[]
         self.trained_model={}
         for name,model in tqdm(self.sklearn_estimators + self.extra_estimators):
+            print(name)
             try : 
                 if name in self.groupbased_estimators:
                     continue
-                model=model(random_state=self.random_state,**self.params[name] if name in self.params.keys() else {})       
-            except :
-                model=model(**self.params[name] if name in self.params.keys() else {})   
-            try :
-                model.fit(self.X,self.y)
-            except :
-                continue
+                cmodel=model(**self.params[name] if name in self.params.keys() else {})       
+                cmodel.fit(self.X,self.y)
+                
+            except Exception as e:
+                print(e)                
             m_metris=[]
             for metric in self.metrics:
-                m_metris.append(metric(self.y,model.predict(self.X)))
-                m_metris.append(metric(self.validation_data[1],model.predict(self.validation_data[0])))
-            metris.append(m_metris)              
-            self.trained_model[name]=model
+                m_metris.append(metric(self.y,cmodel.predict(self.X)))
+                m_metris.append(metric(self.validation_data[1],cmodel.predict(self.validation_data[0])))
+            metris.append(m_metris) 
+            self.trained_model[name]=cmodel
         score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_']])
         score_df.insert(0,'model',self.trained_model.keys())
         self.score_df=score_df.sort_values(by=['val_'+self.metrics[0].__name__,'train_'+self.metrics[0].__name__],ascending=self.ascending)
@@ -349,34 +355,7 @@ class tabular_supervised :
 
 
 
-class data_process(eda):
-    def __init__(self,df=None,target=None):
-        super().__init__()
-        self.df=df
-        self.target=target
-        self.le={}
 
-
-    def preprocess(df,target,drop_col,method='train_test_split'):
-        X=df.drop([target]+drop_col,axis=1)
-        y=df[target]
-        if method=='train_test_split':
-            train_X,val_X,train_y,val_y=train_test_split(X,y,test_size=0.2)
-            for i in [train_X,val_X,train_y,val_y]:
-                print(i.shape)
-            return train_X,val_X,train_y,val_y
-
-    def encoding(self,X,features,method='label',oof=False):
-        if method=='label':
-            for label in features : 
-                le=LabelEncoder()
-                if not oof:
-                    le.fit(X[label])
-                    self.le[label]=le
-                    X[label]=self.le[label].transform(X[label])
-                else:
-                    X[label]=self.le[label].transform(X[label])
-            return X
 
 
 
