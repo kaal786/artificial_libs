@@ -21,10 +21,9 @@ groupbased_estimators=['QuantileRegressor',
                         'GaussianProcessClassifier',
                         'BernoulliNB',
                        'CalibratedClassifierCV',
-                       'NuSVC',
                        'LabelPropagation',
                        'LabelSpreading',
-                        'XGBClassifier'
+                       
                         ]
 
 extrareg_estimators=[(XGBRegressor().__class__.__name__,XGBRegressor),

@@ -1,3 +1,4 @@
+%%writefile sudarshana.py
 # external libs for us.all 
 from abc import abstractmethod
 from logging import exception
@@ -270,7 +271,6 @@ class tabular_supervised :
         metris=[]
         self.trained_model={}
         for name,model in tqdm(self.sklearn_estimators + self.extra_estimators):
-            print(name)
             try : 
                 if name in self.groupbased_estimators:
                     continue
@@ -278,7 +278,8 @@ class tabular_supervised :
                 cmodel.fit(self.X,self.y)
                 
             except Exception as e:
-                print(e)                
+                print(name,e) 
+                continue
             m_metris=[]
             for metric in self.metrics:
                 m_metris.append(metric(self.y,cmodel.predict(self.X)))
@@ -356,7 +357,122 @@ class tabular_supervised :
 
 
 
+class smartrun: 
+    def __init__(self,
+                    X,
+                    target: str,
+                    validation_data=None,
+                    testx=None,
+                    type_filter='regressor',
+                    drop_col=[],
+                    num_col=[],
+                    cat_col=[],
+                    imputation_method='none',
+                 
+                    model_selection_method='train_test_split',
+                    metrics=None,
+                    **kwargs):
 
+        """
+        X : pandas dataframe
+        y : str format of target col
+        drop_col : list of feature to drop,
+        num_col : list of features to handle as numericle,
+        cat_col : list of features to handle as categorical or bool,
+        imputation_method : 'none','drop','topmost'
+        
+        
+        """
+        
+        
+        
+        
+        
+        self.X=X 
+        self.target=target
+        self.testx=testx
+        self.drop_col=drop_col
+        self.num_col=num_col
+        self.cat_col=cat_col
+        self.imputation_method=imputation_method
+        self.model_selection_method=model_selection_method
+        
+        
+        
+        
+        
+    def reduce_mem(self,df):
+        start_mem = df.memory_usage().sum() / 1024**2
+        print('1. Before :  {:.2f} MB'.format(start_mem),end=' ')
+        
+        for col in df.columns:
+            col_type = df[col].dtype
+            
+            if col_type != object:
+                c_min = df[col].min()
+                c_max = df[col].max()
+                if str(col_type)[:3] == 'int':
+                    if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                        df[col] = df[col].astype(np.int8)
+                    elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                        df[col] = df[col].astype(np.int16)
+                    elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                        df[col] = df[col].astype(np.int32)
+                    elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
+                        df[col] = df[col].astype(np.int64)  
+                else:
+                    if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
+                        df[col] = df[col].astype(np.float16)
+                    elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                        df[col] = df[col].astype(np.float32)
+                    else:
+                        df[col] = df[col].astype(np.float64)
+            else:
+                df[col] = df[col].astype('category')
+
+        end_mem = df.memory_usage().sum() / 1024**2
+        print('After : {:.2f} MB'.format(end_mem),end='  ')
+        print('optimized : {:.1f}%\n'.format(100 * (start_mem - end_mem) / start_mem))
+        return df
+
+    
+    def imputation(self,X):
+        if len(X.isnull().sum()[X.isnull().sum() > 0].index.values) > 0:
+            if self.imputation_method=='drop':
+                X=X.dropna()
+            if self.imputation_method=='topmost':
+                for col in train_df.isnull().sum()[train_df.isnull().sum() > 0].index.values : 
+                    if col in num_col:
+                        X.fillna(X[col].mean())
+                    if col in cat_col:
+                        value=X[col].value_counts().index.values[0]
+                        X.fillna(value)
+            return X           
+        else : return X
+            
+    def model_selection(self,X):
+        if self.model_selection_method=='train_test_split':
+            trainx,valx,trainy,valy=train_test_split(X.drop([self.target],axis=1).values,X[target].values)
+            print('3. trainx :{} , triany :{}\n valx :{} ,valy :{}\n'.format(trainx.shape,trainy.shape,valx.shape,valy.shape))
+            return trainx,valx,trainy,valy
+        if self.model_selection_method=='kfold':
+            kf=KFold(n_splits=5)
+            tidx=kf.split(train_df,).__next__()[0]
+            vidx=kf.split(train_df,).__next__()[1]
+            trainx,valx,trainy,valy=X.loc[tidx],X.loc[vidx],X[target].loc[tidx],X[target].loc[vidx]
+            print('3. trainx :{} , triany :{}\n valx :{} ,valy :{}\n'.format(trainx.shape,trainy.shape,valx.shape,valy.shape))
+            return trainx,valx,trainy,valy 
+    
+    def dataprocess(self):
+        self.X=self.reduce_mem(self.X)
+        self.X=self.X.drop(self.drop_col,axis=1)
+        print('2. features with NaN values :{} with respected null percentage are :{}\n'.format(
+                self.X.isnull().sum()[self.X.isnull().sum() > 0],
+                list(map(lambda x : (x/self.X.shape[0])*100,self.X.isnull().sum()[self.X.isnull().sum() > 0].values.tolist()))
+                ))
+        if self.imputation_method != 'none':
+            self.X=self.imputation(self.X)
+        return self.model_selection(self.X)
 
 
 if __name__=='__main__':
