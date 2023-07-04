@@ -1,4 +1,4 @@
-%%writefile sudarshana.py
+
 # external libs for us.all 
 from abc import abstractmethod
 from logging import exception
@@ -39,6 +39,9 @@ from tensorflow.keras.models import Model
 
 
 from _estimators import groupbased_estimators,extrareg_estimators,extraclf_estimators
+from xgboost import XGBRegressor,XGBClassifier
+from lightgbm import LGBMRegressor,LGBMClassifier
+from catboost import CatBoostRegressor,CatBoostClassifier
 
 
 
@@ -474,6 +477,9 @@ class smartrun:
             self.X=self.imputation(self.X)
         return self.model_selection(self.X)
 
+
+
+class 
 
 if __name__=='__main__':
     pass
