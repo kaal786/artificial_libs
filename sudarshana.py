@@ -44,6 +44,9 @@ from lightgbm import LGBMRegressor,LGBMClassifier
 from catboost import CatBoostRegressor,CatBoostClassifier
 
 
+from utils._dataprocess import reduce_mem
+
+
 
 #set seeds
 random.seed(42)
@@ -404,39 +407,7 @@ class smartrun:
         
         
         
-    def reduce_mem(self,df):
-        start_mem = df.memory_usage().sum() / 1024**2
-        print('1. Before :  {:.2f} MB'.format(start_mem),end=' ')
-        
-        for col in df.columns:
-            col_type = df[col].dtype
-            
-            if col_type != object:
-                c_min = df[col].min()
-                c_max = df[col].max()
-                if str(col_type)[:3] == 'int':
-                    if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
-                        df[col] = df[col].astype(np.int8)
-                    elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
-                        df[col] = df[col].astype(np.int16)
-                    elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
-                        df[col] = df[col].astype(np.int32)
-                    elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
-                        df[col] = df[col].astype(np.int64)  
-                else:
-                    if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
-                        df[col] = df[col].astype(np.float16)
-                    elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
-                        df[col] = df[col].astype(np.float32)
-                    else:
-                        df[col] = df[col].astype(np.float64)
-            else:
-                df[col] = df[col].astype('category')
-
-        end_mem = df.memory_usage().sum() / 1024**2
-        print('After : {:.2f} MB'.format(end_mem),end='  ')
-        print('optimized : {:.1f}%\n'.format(100 * (start_mem - end_mem) / start_mem))
-        return df
+    
 
     
     def imputation(self,X):
@@ -467,7 +438,7 @@ class smartrun:
             return trainx,valx,trainy,valy 
     
     def dataprocess(self):
-        self.X=self.reduce_mem(self.X)
+        self.X=reduce_mem(self.X)
         self.X=self.X.drop(self.drop_col,axis=1)
         print('2. features with NaN values :{} with respected null percentage are :{}\n'.format(
                 self.X.isnull().sum()[self.X.isnull().sum() > 0],
@@ -479,7 +450,6 @@ class smartrun:
 
 
 
-class 
 
 if __name__=='__main__':
     pass
