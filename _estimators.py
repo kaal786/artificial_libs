@@ -34,3 +34,6 @@ extrareg_estimators=[(XGBRegressor().__class__.__name__,XGBRegressor),
 extraclf_estimators=[(XGBClassifier().__class__.__name__,XGBClassifier),
                     (LGBMClassifier().__class__.__name__,LGBMClassifier),
                     (CatBoostClassifier().__class__.__name__,CatBoostClassifier)   ]
+
+
+timecomplex_estimators=['SVC']
