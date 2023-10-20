@@ -36,4 +36,5 @@ extraclf_estimators=[(XGBClassifier().__class__.__name__,XGBClassifier),
                     (CatBoostClassifier().__class__.__name__,CatBoostClassifier)   ]
 
 
-timecomplex_estimators=['SVC']
+sensitive_estimators=[  'SVC',
+                        'CatBoostClassifier']

@@ -38,7 +38,7 @@ from tensorflow.keras.layers import Input, Dense ,Dropout
 from tensorflow.keras.models import Model
 
 
-from _estimators import groupbased_estimators,extrareg_estimators,extraclf_estimators,timecomplex_estimators
+from _estimators import groupbased_estimators,extrareg_estimators,extraclf_estimators,sensitive_estimators
 from xgboost import XGBRegressor,XGBClassifier
 from lightgbm import LGBMRegressor,LGBMClassifier
 from catboost import CatBoostRegressor,CatBoostClassifier
@@ -279,7 +279,7 @@ class tabular_supervised :
         for name,model in tqdm(self.sklearn_estimators + self.extra_estimators):
             print(name)
             try : 
-                if name in self.groupbased_estimators+timecomplex_estimators:
+                if name in self.groupbased_estimators+sensitive_estimators:
                     continue
 
                 cmodel=model(**self.params[name] if name in self.params.keys() else {})       
