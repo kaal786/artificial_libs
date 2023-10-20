@@ -289,7 +289,8 @@ class tabular_supervised :
             m_metris=[]
             for metric in self.metrics:
                 m_metris.append(metric(self.y,cmodel.predict(self.X)))
-                m_metris.append(metric(self.validation_data[1],cmodel.predict(self.validation_data[0])))
+                if self.validation_data is not None:
+                    m_metris.append(metric(self.validation_data[1],cmodel.predict(self.validation_data[0])))
             metris.append(m_metris) 
             self.trained_model[name]=cmodel
         score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_']])
