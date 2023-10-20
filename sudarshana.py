@@ -277,6 +277,7 @@ class tabular_supervised :
         metris=[]
         self.trained_model={}
         for name,model in tqdm(self.sklearn_estimators + self.extra_estimators):
+            print(name)
             try : 
                 if name in self.groupbased_estimators:
                     continue
@@ -390,11 +391,7 @@ class smartrun:
         
         
         """
-        
-        
-        
-        
-        
+     
         self.X=X 
         self.target=target
         self.testx=testx
@@ -405,12 +402,7 @@ class smartrun:
         self.model_selection_method=model_selection_method
         
         
-        
-        
-        
-    
-
-    
+   
     def imputation(self,X):
         if len(X.isnull().sum()[X.isnull().sum() > 0].index.values) > 0:
             if self.imputation_method=='drop':
@@ -448,6 +440,7 @@ class smartrun:
         if self.imputation_method != 'none':
             self.X=self.imputation(self.X)
         return self.model_selection(self.X)
+
 
 
 
