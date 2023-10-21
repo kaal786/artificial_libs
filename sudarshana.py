@@ -295,7 +295,7 @@ class tabular_supervised :
             
             self.trained_model[name]=cmodel
             
-        score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_'] if self.validation_data is not None else ['train_']])
+        score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_']])
         score_df.insert(0,'model',self.trained_model.keys())
         self.score_df=score_df.sort_values(by=['val_'+self.metrics[0].__name__,'train_'+self.metrics[0].__name__],ascending=self.ascending)
 
