@@ -283,18 +283,18 @@ class tabular_supervised :
                     continue
                 cmodel=model(**self.params[name] if name in self.params.keys() else {})       
                 cmodel.fit(self.X,self.y)
+                m_metris=[]
+                for metric in self.metrics:
+                    m_metris.append(metric(self.y,cmodel.predict(self.X)))
+                    if self.validation_data is not None:
+                        m_metris.append(metric(self.validation_data[1],cmodel.predict(self.validation_data[0])))
+                metris.append(m_metris) 
             except Exception as e:
                 print(name,e) 
                 continue
-
-            m_metris=[]
-            for metric in self.metrics:
-                m_metris.append(metric(self.y,cmodel.predict(self.X)))
-                if self.validation_data is not None:
-                    m_metris.append(metric(self.validation_data[1],cmodel.predict(self.validation_data[0])))
-            metris.append(m_metris) 
+            
             self.trained_model[name]=cmodel
-            print(metris)
+            
         score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_'] if self.validation_data is not None else ['train_']])
         score_df.insert(0,'model',self.trained_model.keys())
         self.score_df=score_df.sort_values(by=['val_'+self.metrics[0].__name__,'train_'+self.metrics[0].__name__],ascending=self.ascending)
