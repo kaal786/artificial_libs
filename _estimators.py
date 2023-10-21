@@ -37,4 +37,19 @@ extraclf_estimators=[(XGBClassifier().__class__.__name__,XGBClassifier),
 
 
 sensitive_estimators=[  'SVC',
-                        'CatBoostClassifier']
+                        'CatBoostClassifier',
+                        'BernoulliNB',
+                        'CalibratedClassifierCV',
+                        'ClassifierChain',
+                        'ComplementNB',
+                        'DummyClassifier',
+                        'GaussianNB',
+                        'GaussianProcessClassifier',
+                        'MultiOutputClassifier',
+                        'MultinomialNB',
+                        'LabelPropagation',
+                        'LabelSpreading',
+                        'NuSVC',
+                        'OneVsOneClassifier',
+                        'OneVsRestClassifier',
+                        'OutputCodeClassifier']
