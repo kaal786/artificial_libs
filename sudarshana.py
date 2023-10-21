@@ -277,7 +277,6 @@ class tabular_supervised :
         metris=[]
         self.trained_model={}
         for name,model in tqdm(self.sklearn_estimators + self.extra_estimators):
-            print(name)
             try : 
                 if name in self.groupbased_estimators+sensitive_estimators:
                     continue
@@ -290,7 +289,7 @@ class tabular_supervised :
                         m_metris.append(metric(self.validation_data[1],cmodel.predict(self.validation_data[0])))
                 metris.append(m_metris) 
             except Exception as e:
-                print(name,e) 
+                print('There are some issue in traning your model with given data') 
                 continue
             
             self.trained_model[name]=cmodel
@@ -298,7 +297,6 @@ class tabular_supervised :
         score_df=pd.DataFrame(metris,columns=[f'{i}{m.__name__}'for m in self.metrics for i in ['train_','val_']])
         score_df.insert(0,'model',self.trained_model.keys())
         self.score_df=score_df.sort_values(by=['val_'+self.metrics[0].__name__,'train_'+self.metrics[0].__name__],ascending=self.ascending)
-
         return self.score_df
     
     def stacked(self,test_X=None,method: str='ensemble',top: int=5,proba: str =False,cv:int=5):
