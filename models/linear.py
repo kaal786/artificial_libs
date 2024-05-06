@@ -4,9 +4,8 @@ from csv import reader
 from math import sqrt
 
 import os
-print(os.getcwd())
 
-from utils._stats import mean,variance,covariance
+from utils.stats import mean,variance,covariance
 
 
 class LinearRegression :
@@ -32,8 +31,6 @@ class LinearRegression :
     #         yhat = b0 + b1 * row
     #         predictions.append(yhat)
     #     return predictions
-
-
 
     def fit(self,X,y):
         if len(X.shape) < 2:

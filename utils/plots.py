@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 def correlation(dfs) ->None:
     mask=np.triu(np.ones_like(dfs.corr()))
     sns.heatmap(dfs.corr(),mask=mask,cmap='Dark2',annot=True)
-  
+    plt.show()
 def distribution(dfs,features:list,kde:bool=False) ->None :
     n_cols = 2
     n_rows = ceil(len(features)/n_cols)

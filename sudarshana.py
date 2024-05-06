@@ -44,7 +44,7 @@ from lightgbm import LGBMRegressor,LGBMClassifier
 from catboost import CatBoostRegressor,CatBoostClassifier
 
 
-from utils._dataprocess import reduce_mem
+from utils.dataprocess import reduce_mem
 
 
 

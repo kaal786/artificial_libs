@@ -1,9 +1,15 @@
-from utils._stats import euclidean_distance
+from utils.stats import euclidean_distance
 
 class KNeighborsClassifier :
   def __init__(self,n_neighbors=5):
+    """
+    model=KNeighborsClassifier()
+    model.fit(X,y)
+    yhat=model.predict(X)
+    accuracy_score(y,yhat)
+    
+    """
     self.n_neighbors=n_neighbors
-
 
   def get_neighbors(self,test_row):
     distances = list()
@@ -17,9 +23,16 @@ class KNeighborsClassifier :
     return neighbors
 
   def fit(self,X,y) :
+    """
+    X: List[List] , features
+    y: List , label
+    """
     self.X=X
     self.y=y
   def predict(self,test):
+    """
+    testX : List[List]
+    """
     predictions = list()
     for row in test:
       neighbors = self.get_neighbors(row)         # return top K neighbors

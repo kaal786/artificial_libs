@@ -1,9 +1,9 @@
 
-from models._linear import LinearRegression
+from models.linear import LinearRegression
 import pandas as pd
 import sys
 from math import ceil
-from utils._plots import distribution,correlation
+from utils.plots import distribution,correlation
 import numpy as np
 #sys.path.append("..")
 def res():
@@ -18,7 +18,7 @@ def res():
 		# lr=LinearRegression()
 		# lr.fit(X,y)
 		# print('running')
-	correlation(df)
-	distribution(df,features=features)
+	print(correlation(df))
+	print(distribution(df,features=features))
 
 res()
