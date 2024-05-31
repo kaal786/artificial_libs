@@ -1,3 +1,3 @@
 
-from dense import Dense
-from model import Sequential
+from .dense import Dense
+from .model import Sequential
